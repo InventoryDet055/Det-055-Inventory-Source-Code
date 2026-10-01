@@ -102,12 +102,21 @@ export default async function MyInventoryPage() {
               </p>
             </div>
 
-            <a
-              href="/my-inventory/add"
-              className="rounded-lg bg-black px-5 py-3 text-center font-semibold text-white transition hover:bg-gray-800"
-            >
-              + Add Item
-            </a>
+            <div className="flex gap-3">
+  <a
+    href="/my-inventory/history"
+    className="rounded-lg border border-gray-300 px-5 py-3 text-center font-semibold text-black transition hover:bg-gray-100"
+  >
+    History
+  </a>
+
+  <a
+    href="/my-inventory/add"
+    className="rounded-lg bg-black px-5 py-3 text-center font-semibold text-white transition hover:bg-gray-800"
+  >
+    + Add Item
+  </a>
+</div>
           </div>
         </div>
 
