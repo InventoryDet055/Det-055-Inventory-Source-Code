@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import CadetHeader from "@/components/cadet-header";
 
 export const instant = false;
 
@@ -25,7 +26,9 @@ type AppItem = {
   uniform_category: string;
 };
 
-function getObject(value: unknown): Record<string, unknown> | null {
+function getObject(
+  value: unknown
+): Record<string, unknown> | null {
   if (
     value &&
     typeof value === "object" &&
@@ -49,9 +52,7 @@ function getString(
 
   const result = object[key];
 
-  return typeof result === "string"
-    ? result
-    : null;
+  return typeof result === "string" ? result : null;
 }
 
 function getNumber(
@@ -66,9 +67,7 @@ function getNumber(
 
   const result = object[key];
 
-  return typeof result === "number"
-    ? result
-    : null;
+  return typeof result === "number" ? result : null;
 }
 
 export default async function InventoryHistoryPage() {
@@ -113,9 +112,11 @@ export default async function InventoryHistoryPage() {
     throw new Error(eventsError.message);
   }
 
-  const events =
-    (eventData ?? []) as InventoryEvent[];
+  const events = (eventData ?? []) as InventoryEvent[];
 
+  /*
+   * Collect all catalog variant IDs referenced in the history.
+   */
   const variantIds = Array.from(
     new Set(
       events.flatMap((event) => {
@@ -129,16 +130,16 @@ export default async function InventoryHistoryPage() {
           "catalog_variant_id"
         );
 
-        return [
-          beforeVariant,
-          afterVariant,
-        ].filter(
+        return [beforeVariant, afterVariant].filter(
           (id): id is string => Boolean(id)
         );
       })
     )
   );
 
+  /*
+   * Load the variants referenced by those events.
+   */
   let variants: CatalogVariant[] = [];
 
   if (variantIds.length > 0) {
@@ -156,15 +157,16 @@ export default async function InventoryHistoryPage() {
       .in("id", variantIds);
 
     if (variantsError) {
-      throw new Error(
-        variantsError.message
-      );
+      throw new Error(variantsError.message);
     }
 
     variants =
       (variantData ?? []) as CatalogVariant[];
   }
 
+  /*
+   * Determine which friendly inventory items those variants belong to.
+   */
   const appItemIds = Array.from(
     new Set(
       variants.map(
@@ -189,15 +191,16 @@ export default async function InventoryHistoryPage() {
       .in("id", appItemIds);
 
     if (appItemsError) {
-      throw new Error(
-        appItemsError.message
-      );
+      throw new Error(appItemsError.message);
     }
 
     appItems =
       (appItemData ?? []) as AppItem[];
   }
 
+  /*
+   * Maps let us quickly translate UUIDs into readable item information.
+   */
   const variantMap = new Map(
     variants.map((variant) => [
       variant.id,
@@ -391,117 +394,110 @@ export default async function InventoryHistoryPage() {
   }
 
   return (
-    <main className="min-h-screen bg-blue-400 p-4 sm:p-8">
-      <div className="mx-auto max-w-4xl">
-        <a
-          href="/my-inventory"
-          className="text-sm font-semibold text-white hover:text-black"
-        >
-          ← Back to My Inventory
-        </a>
+    <div className="min-h-screen bg-blue-400">
+      <CadetHeader />
 
-        <div className="mt-6 rounded-xl bg-white p-6 shadow sm:p-8">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-400">
-            My Inventory
-          </p>
-
-          <h1 className="mt-1 text-3xl font-bold text-black">
-            Inventory History
-          </h1>
-
-          <p className="mt-2 text-sm text-gray-600">
-            A record of changes made to your
-            issued inventory.
-          </p>
-        </div>
-
-        {events.length === 0 ? (
-          <div className="mt-6 rounded-xl bg-white p-8 text-center shadow">
-            <p className="font-semibold text-black">
-              No inventory history yet.
+      <main className="p-4 sm:p-8">
+        <div className="mx-auto max-w-4xl">
+          {/* Page Header */}
+          <div className="rounded-xl bg-white p-6 shadow sm:p-8">
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-400">
+              My Inventory
             </p>
 
-            <p className="mt-2 text-sm text-gray-500">
-              Changes to your inventory will
-              appear here.
+            <h1 className="mt-1 text-3xl font-bold text-black">
+              Inventory History
+            </h1>
+
+            <p className="mt-2 text-sm text-gray-600">
+              A record of changes made to your issued inventory.
             </p>
           </div>
-        ) : (
-          <div className="mt-6 overflow-hidden rounded-xl bg-white shadow">
-            {events.map((event, index) => {
-              const description =
-                describeEvent(event);
 
-              const actor =
-                event.actor_profile_id ===
-                user.id
-                  ? "You"
-                  : event.actor_profile_id
-                  ? "Inventory Staff"
-                  : "System";
+          {/* Empty State */}
+          {events.length === 0 ? (
+            <div className="mt-6 rounded-xl bg-white p-8 text-center shadow">
+              <p className="font-semibold text-black">
+                No inventory history yet.
+              </p>
 
-              const date =
-                new Date(
+              <p className="mt-2 text-sm text-gray-500">
+                Changes to your inventory will appear here.
+              </p>
+            </div>
+          ) : (
+            /* History List */
+            <div className="mt-6 overflow-hidden rounded-xl bg-white shadow">
+              {events.map((event, index) => {
+                const description =
+                  describeEvent(event);
+
+                const actor =
+                  event.actor_profile_id === user.id
+                    ? "You"
+                    : event.actor_profile_id
+                    ? "Inventory Staff"
+                    : "System";
+
+                const date = new Date(
                   event.created_at
-                ).toLocaleString(
-                  "en-US",
-                  {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                    timeZone:
-                      "America/Los_Angeles",
-                  }
-                );
+                ).toLocaleString("en-US", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                  timeZone:
+                    "America/Los_Angeles",
+                });
 
-              return (
-                <div
-                  key={event.id}
-                  className={`p-5 sm:p-6 ${
-                    index !==
-                    events.length - 1
-                      ? "border-b border-gray-200"
-                      : ""
-                  }`}
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      {description.category && (
-                        <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">
-                          {
-                            description.category
-                          }
+                return (
+                  <div
+                    key={event.id}
+                    className={`p-5 sm:p-6 ${
+                      index !==
+                      events.length - 1
+                        ? "border-b border-gray-200"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        {description.category && (
+                          <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">
+                            {
+                              description.category
+                            }
+                          </p>
+                        )}
+
+                        <h2 className="mt-1 font-semibold text-black">
+                          {description.title}
+                        </h2>
+
+                        {description.details && (
+                          <p className="mt-1 text-sm text-gray-600">
+                            {
+                              description.details
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="shrink-0 text-left sm:text-right">
+                        <p className="text-sm text-gray-600">
+                          {date}
                         </p>
-                      )}
 
-                      <h2 className="mt-1 font-semibold text-black">
-                        {description.title}
-                      </h2>
-
-                      {description.details && (
-                        <p className="mt-1 text-sm text-gray-600">
-                          {
-                            description.details
-                          }
+                        <p className="mt-1 text-xs font-semibold text-gray-400">
+                          {actor}
                         </p>
-                      )}
-                    </div>
-
-                    <div className="shrink-0 text-left sm:text-right">
-                      <p className="text-sm text-gray-600">
-                        {date}
-                      </p>
-
-                      <p className="mt-1 text-xs font-semibold text-gray-400">
-                        {actor}
-                      </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </main>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
