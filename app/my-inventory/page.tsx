@@ -14,17 +14,17 @@ export default async function MyInventoryPage() {
     redirect("/auth/login");
   }
 
-  // Get profile
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, first_name, last_name, email")
     .eq("id", user.id)
     .single();
 
-  // Get cadet record
   const { data: cadet } = await supabase
     .from("cadets")
-    .select("id, as_class, component, status")
+    .select(
+      "id, as_class, component, status, inventory_setup_completed_at"
+    )
     .eq("profile_id", user.id)
     .maybeSingle();
 
@@ -46,7 +46,6 @@ export default async function MyInventoryPage() {
     );
   }
 
-  // Load friendly inventory data
   const { data: inventory, error } = await supabase
     .from("cadet_inventory_details")
     .select("*")
@@ -111,6 +110,26 @@ export default async function MyInventoryPage() {
             </a>
           </div>
         </div>
+
+        {!cadet.inventory_setup_completed_at && (
+          <div className="mt-6 rounded-xl bg-white p-6 shadow">
+            <h2 className="text-xl font-bold text-black">
+              Set Up Your Inventory
+            </h2>
+
+            <p className="mt-2 text-sm text-gray-600">
+              Complete your initial inventory setup so Det 055 has an
+              accurate record of the uniform items currently issued to you.
+            </p>
+
+            <a
+              href="/my-inventory/setup"
+              className="mt-5 inline-block rounded-lg bg-black px-5 py-3 font-semibold text-white transition hover:bg-gray-800"
+            >
+              Set Up My Inventory
+            </a>
+          </div>
+        )}
 
         <div className="mt-6 space-y-6">
           {categories.map((category) => {
