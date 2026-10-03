@@ -29,7 +29,9 @@ async function requireInventoryStaff() {
     profileRoles?.map((role) => role.role_id) ?? [];
 
   if (roleIds.length === 0) {
-    throw new Error("You do not have permission to modify inventory.");
+    throw new Error(
+      "You do not have permission to modify inventory."
+    );
   }
 
   const { data: roles, error: rolesError } =
@@ -50,7 +52,9 @@ async function requireInventoryStaff() {
     roleNames.includes("inventory_assistant");
 
   if (!canEdit) {
-    throw new Error("You do not have permission to modify inventory.");
+    throw new Error(
+      "You do not have permission to modify inventory."
+    );
   }
 
   return {
@@ -77,11 +81,15 @@ export async function adjustInventoryQuantity(
   );
 
   if (!cadetId || !inventoryId) {
-    throw new Error("Inventory record was not provided.");
+    throw new Error(
+      "Inventory record was not provided."
+    );
   }
 
   if (delta !== 1 && delta !== -1) {
-    throw new Error("Invalid inventory quantity adjustment.");
+    throw new Error(
+      "Invalid inventory quantity adjustment."
+    );
   }
 
   const { data: inventory, error: inventoryError } =
@@ -93,15 +101,17 @@ export async function adjustInventoryQuantity(
       .single();
 
   if (inventoryError || !inventory) {
-    throw new Error("Inventory record could not be found.");
+    throw new Error(
+      "Inventory record could not be found."
+    );
   }
 
   const newQuantity =
-    inventory.quantity + delta;
+    Number(inventory.quantity) + delta;
 
   if (newQuantity <= 0) {
-    // Quantity 1 -> pressing minus removes the record.
-    // The audit trigger records item_removed automatically.
+    // Qty 1 -> pressing minus officially removes
+    // the item from the cadet's inventory.
     const { error } = await supabase
       .from("cadet_inventory")
       .delete()

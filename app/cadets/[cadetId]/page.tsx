@@ -160,7 +160,10 @@ export default async function CadetProfilePage({
       last_name,
       email
     `)
-    .eq("id", cadet.profile_id)
+    .eq(
+      "id",
+      cadet.profile_id
+    )
     .single();
 
   if (profileError || !profile) {
@@ -168,7 +171,7 @@ export default async function CadetProfilePage({
   }
 
   /*
-   * Load raw issued inventory.
+   * Load issued inventory records.
    */
   const {
     data: inventoryRows,
@@ -197,7 +200,8 @@ export default async function CadetProfilePage({
     ) ?? [];
 
   /*
-   * Load catalog variants.
+   * Load catalog variants used by
+   * this cadet's inventory.
    */
   let variants: Variant[] = [];
 
@@ -226,6 +230,10 @@ export default async function CadetProfilePage({
       (variantRows ?? []) as Variant[];
   }
 
+  /*
+   * Determine which friendly catalog
+   * items those variants belong to.
+   */
   const appItemIds = Array.from(
     new Set(
       variants.map(
@@ -235,9 +243,6 @@ export default async function CadetProfilePage({
     )
   );
 
-  /*
-   * Load friendly item information.
-   */
   let appItems: AppItem[] = [];
 
   if (appItemIds.length > 0) {
@@ -264,6 +269,9 @@ export default async function CadetProfilePage({
       (appItemRows ?? []) as AppItem[];
   }
 
+  /*
+   * Build lookup maps.
+   */
   const variantMap = new Map(
     variants.map(
       (variant) => [
@@ -290,8 +298,8 @@ export default async function CadetProfilePage({
   ];
 
   /*
-   * Combine inventory + variant + app item
-   * into something easy for the UI to render.
+   * Combine inventory + variant +
+   * friendly catalog information.
    */
   const inventory =
     inventoryRows
@@ -344,7 +352,9 @@ export default async function CadetProfilePage({
         };
       })
       .filter(
-        (record): record is NonNullable<
+        (
+          record
+        ): record is NonNullable<
           typeof record
         > => record !== null
       )
@@ -379,6 +389,9 @@ export default async function CadetProfilePage({
         );
       }) ?? [];
 
+  /*
+   * Quick statistics.
+   */
   const totalQuantity =
     inventory.reduce(
       (total, item) =>
@@ -430,7 +443,7 @@ export default async function CadetProfilePage({
 
       <main className="p-4 sm:p-8">
         <div className="mx-auto max-w-6xl">
-          {/* Back */}
+          {/* Back to Cadet Directory */}
           <a
             href="/cadets"
             className="text-sm font-semibold text-white hover:text-black"
@@ -464,7 +477,7 @@ export default async function CadetProfilePage({
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`rounded-full px-3 py-1 text-sm font-semibold ${
                     cadet.status ===
@@ -487,6 +500,15 @@ export default async function CadetProfilePage({
                     ? "Setup Complete"
                     : "Setup Incomplete"}
                 </span>
+
+                {canEdit && (
+                  <a
+                    href={`/cadets/${cadet.id}/add`}
+                    className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"
+                  >
+                    + Add Item
+                  </a>
+                )}
               </div>
             </div>
           </div>
@@ -524,7 +546,7 @@ export default async function CadetProfilePage({
             </div>
           </div>
 
-          {/* Inventory */}
+          {/* Inventory Categories */}
           <div className="mt-6 space-y-6">
             {categoryOrder.map(
               (category) => {
@@ -547,8 +569,7 @@ export default async function CadetProfilePage({
                     {categoryItems.length ===
                     0 ? (
                       <p className="mt-4 text-sm text-gray-500">
-                        No items on
-                        file.
+                        No items on file.
                       </p>
                     ) : (
                       <div className="mt-4 divide-y divide-gray-200">
@@ -579,6 +600,7 @@ export default async function CadetProfilePage({
 
                               {canEdit ? (
                                 <div className="flex items-center gap-2">
+                                  {/* Decrease Quantity */}
                                   <form
                                     action={
                                       adjustInventoryQuantity
@@ -620,6 +642,7 @@ export default async function CadetProfilePage({
                                     </button>
                                   </form>
 
+                                  {/* Quantity */}
                                   <span className="min-w-16 rounded-full bg-blue-400 px-3 py-1 text-center text-sm font-semibold text-white">
                                     Qty{" "}
                                     {
@@ -627,6 +650,7 @@ export default async function CadetProfilePage({
                                     }
                                   </span>
 
+                                  {/* Increase Quantity */}
                                   <form
                                     action={
                                       adjustInventoryQuantity
@@ -682,6 +706,7 @@ export default async function CadetProfilePage({
             )}
           </div>
 
+          {/* Cadre Read-Only Notice */}
           {!canEdit && (
             <div className="mt-6 rounded-xl bg-white p-5 shadow">
               <p className="text-sm text-gray-600">
