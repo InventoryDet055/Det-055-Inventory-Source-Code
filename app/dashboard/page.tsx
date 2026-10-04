@@ -254,22 +254,36 @@ export default async function DashboardPage() {
   </p>
 </a>
 
-              {isAdmin && (
-                <div className="rounded-xl border border-gray-200 p-5 opacity-60">
-                  <p className="font-semibold text-black">
-                    Admin
-                  </p>
+              {isAdmin ? (
+              <a
+                href="/admin"
+                className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
+              >
+                <p className="font-semibold text-blue-500">
+                  Admin
+                </p>
 
-                  <p className="mt-1 text-sm text-gray-600">
-                    User roles and catalog controls will be added later.
-                  </p>
-                </div>
-              )}
-            </div>
+                <p className="mt-1 text-sm text-gray-600">
+                  Manage users, roles, and cadet status.
+                </p>
+              </a>
+            ) : (
+              <div className="rounded-xl border border-gray-200 p-5 opacity-60">
+                <p className="font-semibold text-black">
+                  Admin
+                </p>
+
+                <p className="mt-1 text-sm text-gray-600">
+                  Inventory Admin access required.
+                </p>
+              </div>
+            )}
+
           </div>
+        </div>
 
-          {/* Setup Status */}
-          {setupRemaining > 0 && (
+        {/* Setup Status */}
+        {setupRemaining > 0 && (
             <div className="mt-6 rounded-xl bg-white p-6 shadow">
               <h2 className="text-lg font-bold text-black">
                 Inventory Setup Progress
