@@ -53,15 +53,11 @@ export default async function CadetProfilePage({
     .eq("profile_id", user.id);
 
   if (profileRolesError) {
-    throw new Error(
-      profileRolesError.message
-    );
+    throw new Error(profileRolesError.message);
   }
 
   const roleIds =
-    profileRoles?.map(
-      (role) => role.role_id
-    ) ?? [];
+    profileRoles?.map((role) => role.role_id) ?? [];
 
   let roleNames: string[] = [];
 
@@ -75,26 +71,18 @@ export default async function CadetProfilePage({
       .in("id", roleIds);
 
     if (rolesError) {
-      throw new Error(
-        rolesError.message
-      );
+      throw new Error(rolesError.message);
     }
 
     roleNames =
-      roles?.map(
-        (role) => role.name
-      ) ?? [];
+      roles?.map((role) => role.name) ?? [];
   }
 
   const isAdmin =
-    roleNames.includes(
-      "inventory_admin"
-    );
+    roleNames.includes("inventory_admin");
 
   const isAssistant =
-    roleNames.includes(
-      "inventory_assistant"
-    );
+    roleNames.includes("inventory_assistant");
 
   const isCadre =
     roleNames.includes("cadre");
@@ -160,10 +148,7 @@ export default async function CadetProfilePage({
       last_name,
       email
     `)
-    .eq(
-      "id",
-      cadet.profile_id
-    )
+    .eq("id", cadet.profile_id)
     .single();
 
   if (profileError || !profile) {
@@ -171,7 +156,7 @@ export default async function CadetProfilePage({
   }
 
   /*
-   * Load issued inventory records.
+   * Load current inventory.
    */
   const {
     data: inventoryRows,
@@ -188,20 +173,16 @@ export default async function CadetProfilePage({
     .eq("cadet_id", cadet.id);
 
   if (inventoryError) {
-    throw new Error(
-      inventoryError.message
-    );
+    throw new Error(inventoryError.message);
   }
 
   const variantIds =
     inventoryRows?.map(
-      (record) =>
-        record.catalog_variant_id
+      (record) => record.catalog_variant_id
     ) ?? [];
 
   /*
-   * Load catalog variants used by
-   * this cadet's inventory.
+   * Load variants used by this cadet.
    */
   let variants: Variant[] = [];
 
@@ -231,14 +212,13 @@ export default async function CadetProfilePage({
   }
 
   /*
-   * Determine which friendly catalog
-   * items those variants belong to.
+   * Determine the friendly inventory items
+   * associated with those variants.
    */
   const appItemIds = Array.from(
     new Set(
       variants.map(
-        (variant) =>
-          variant.app_item_id
+        (variant) => variant.app_item_id
       )
     )
   );
@@ -273,21 +253,17 @@ export default async function CadetProfilePage({
    * Build lookup maps.
    */
   const variantMap = new Map(
-    variants.map(
-      (variant) => [
-        variant.id,
-        variant,
-      ]
-    )
+    variants.map((variant) => [
+      variant.id,
+      variant,
+    ])
   );
 
   const appItemMap = new Map(
-    appItems.map(
-      (item) => [
-        item.id,
-        item,
-      ]
-    )
+    appItems.map((item) => [
+      item.id,
+      item,
+    ])
   );
 
   const categoryOrder = [
@@ -298,8 +274,8 @@ export default async function CadetProfilePage({
   ];
 
   /*
-   * Combine inventory + variant +
-   * friendly catalog information.
+   * Combine inventory data with friendly
+   * item and variant information.
    */
   const inventory =
     inventoryRows
@@ -390,15 +366,13 @@ export default async function CadetProfilePage({
       }) ?? [];
 
   /*
-   * Quick statistics.
+   * Quick stats.
    */
   const totalQuantity =
     inventory.reduce(
       (total, item) =>
         total +
-        Number(
-          item.quantity ?? 0
-        ),
+        Number(item.quantity ?? 0),
       0
     );
 
@@ -451,7 +425,7 @@ export default async function CadetProfilePage({
             ← Back to Cadets
           </a>
 
-          {/* Cadet Header */}
+          {/* Cadet Profile Header */}
           <div className="mt-4 rounded-xl bg-white p-6 shadow sm:p-8">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -686,6 +660,14 @@ export default async function CadetProfilePage({
                                       +
                                     </button>
                                   </form>
+
+                                  {/* Edit */}
+                                  <a
+                                    href={`/cadets/${cadet.id}/${item.inventoryId}/edit`}
+                                    className="ml-2 text-sm font-semibold text-blue-500 transition hover:text-black"
+                                  >
+                                    Edit
+                                  </a>
                                 </div>
                               ) : (
                                 <span className="rounded-full bg-blue-400 px-3 py-1 text-sm font-semibold text-white">
@@ -706,7 +688,7 @@ export default async function CadetProfilePage({
             )}
           </div>
 
-          {/* Cadre Read-Only Notice */}
+          {/* Read-only notice for Cadre */}
           {!canEdit && (
             <div className="mt-6 rounded-xl bg-white p-5 shadow">
               <p className="text-sm text-gray-600">
