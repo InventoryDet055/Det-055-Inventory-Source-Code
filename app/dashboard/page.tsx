@@ -238,15 +238,18 @@ export default async function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-gray-200 p-5 opacity-60">
-                <p className="font-semibold text-black">
-                  Activity
-                </p>
+              <a
+  href="/activity"
+  className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
+>
+  <p className="font-semibold text-blue-500">
+    Activity
+  </p>
 
-                <p className="mt-1 text-sm text-gray-600">
-                  Global inventory history will be added shortly.
-                </p>
-              </div>
+  <p className="mt-1 text-sm text-gray-600">
+    Review inventory changes across Det 055.
+  </p>
+</a>
 
               {isAdmin && (
                 <div className="rounded-xl border border-gray-200 p-5 opacity-60">

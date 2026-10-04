@@ -34,6 +34,13 @@ export default function StaffHeader({
               Cadets
             </Link>
 
+            <Link
+              href="/activity"
+              className="text-sm font-semibold text-gray-600 transition hover:text-blue-500"
+            >
+              Activity
+            </Link>
+
             {showMyInventory && (
               <Link
                 href="/my-inventory"
@@ -68,6 +75,13 @@ export default function StaffHeader({
           className="flex-1 border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
         >
           Cadets
+        </Link>
+
+        <Link
+          href="/activity"
+          className="flex-1 border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
+        >
+          Activity
         </Link>
 
         {showMyInventory && (
