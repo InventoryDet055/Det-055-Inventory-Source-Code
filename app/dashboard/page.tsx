@@ -228,15 +228,18 @@ export default async function DashboardPage() {
                 </p>
               </a>
 
-              <div className="rounded-xl border border-gray-200 p-5 opacity-60">
-                <p className="font-semibold text-black">
-                  WINGS
-                </p>
+              <a
+  href="/wings"
+  className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
+>
+  <p className="font-semibold text-blue-500">
+    WINGS
+  </p>
 
-                <p className="mt-1 text-sm text-gray-600">
-                  WINGS-ready inventory data will be added next.
-                </p>
-              </div>
+  <p className="mt-1 text-sm text-gray-600">
+    Review and export WINGS-ready inventory data.
+  </p>
+</a>
 
               <a
   href="/activity"
