@@ -1,320 +1,252 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+  useState,
+  useTransition,
+} from "react";
 
-export function SignUpForm({
-  className,
-  ...props
-}: React.ComponentPropsWithoutRef<"div">) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [asClass, setAsClass] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [repeatPassword, setRepeatPassword] = useState("");
+import { signUpCadet } from "@/app/auth/sign-up/actions";
 
-  const [error, setError] =
-    useState<string | null>(null);
+export function SignUpForm() {
+  const [
+    message,
+    setMessage,
+  ] = useState("");
 
-  const [isLoading, setIsLoading] =
-    useState(false);
+  const [
+    success,
+    setSuccess,
+  ] = useState(false);
 
-  const router = useRouter();
+  const [
+    isPending,
+    startTransition,
+  ] = useTransition();
 
-  const handleSignUp = async (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
+  function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
 
-    const supabase =
-      createClient();
+    setMessage("");
+    setSuccess(false);
 
-    setIsLoading(true);
-    setError(null);
-
-    if (!firstName.trim()) {
-      setError(
-        "First name is required."
+    const formData =
+      new FormData(
+        event.currentTarget
       );
-      setIsLoading(false);
-      return;
-    }
 
-    if (!lastName.trim()) {
-      setError(
-        "Last name is required."
-      );
-      setIsLoading(false);
-      return;
-    }
+    startTransition(
+      async () => {
+        const result =
+          await signUpCadet(
+            formData
+          );
 
-    if (!asClass) {
-      setError(
-        "AS class is required."
-      );
-      setIsLoading(false);
-      return;
-    }
+        setMessage(
+          result.message
+        );
 
-    if (password !== repeatPassword) {
-      setError(
-        "Passwords do not match."
-      );
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const {
-        error: signUpError,
-      } =
-        await supabase.auth.signUp({
-          email,
-          password,
-
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/confirm`,
-
-            data: {
-              account_type:
-                "cadet",
-
-              first_name:
-                firstName.trim(),
-
-              last_name:
-                lastName.trim(),
-
-              as_class:
-                Number(asClass),
-            },
-          },
-        });
-
-      if (signUpError) {
-        throw signUpError;
+        setSuccess(
+          result.success
+        );
       }
-
-      router.push(
-        "/auth/sign-up-success"
-      );
-    } catch (error: unknown) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "An error occurred during sign up."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    );
+  }
 
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-6",
-        className
-      )}
-      {...props}
+    <form
+      onSubmit={
+        handleSubmit
+      }
+      className="flex flex-col gap-4"
     >
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">
-            Create Cadet Account
-          </CardTitle>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label
+            htmlFor="first_name"
+            className="mb-1 block text-sm font-semibold text-black"
+          >
+            First Name
+          </label>
 
-          <CardDescription>
-            Create your Det 055 Inventory account.
-          </CardDescription>
-        </CardHeader>
+          <input
+            id="first_name"
+            name="first_name"
+            type="text"
+            required
+            autoComplete="given-name"
+            className="w-full rounded-lg border border-gray-300 bg-white p-3 text-black"
+          />
+        </div>
 
-        <CardContent>
-          <form onSubmit={handleSignUp}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="firstName">
-                    First Name
-                  </Label>
+        <div>
+          <label
+            htmlFor="last_name"
+            className="mb-1 block text-sm font-semibold text-black"
+          >
+            Last Name
+          </label>
 
-                  <Input
-                    id="firstName"
-                    type="text"
-                    value={firstName}
-                    onChange={(e) =>
-                      setFirstName(
-                        e.target.value
-                      )
-                    }
-                    required
-                  />
-                </div>
+          <input
+            id="last_name"
+            name="last_name"
+            type="text"
+            required
+            autoComplete="family-name"
+            className="w-full rounded-lg border border-gray-300 bg-white p-3 text-black"
+          />
+        </div>
+      </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="lastName">
-                    Last Name
-                  </Label>
+      <div>
+        <label
+          htmlFor="as_class"
+          className="mb-1 block text-sm font-semibold text-black"
+        >
+          AS Class
+        </label>
 
-                  <Input
-                    id="lastName"
-                    type="text"
-                    value={lastName}
-                    onChange={(e) =>
-                      setLastName(
-                        e.target.value
-                      )
-                    }
-                    required
-                  />
-                </div>
-              </div>
+        <select
+          id="as_class"
+          name="as_class"
+          required
+          defaultValue=""
+          className="w-full rounded-lg border border-gray-300 bg-white p-3 text-black"
+        >
+          <option
+            value=""
+            disabled
+          >
+            Select AS Class
+          </option>
 
-              <div className="grid gap-2">
-                <Label htmlFor="asClass">
-                  AS Class
-                </Label>
+          <option value="100">
+            AS 100
+          </option>
 
-                <select
-                  id="asClass"
-                  value={asClass}
-                  onChange={(e) =>
-                    setAsClass(
-                      e.target.value
-                    )
-                  }
-                  required
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                >
-                  <option value="">
-                    Select AS class...
-                  </option>
+          <option value="200">
+            AS 200
+          </option>
 
-                  <option value="100">
-                    AS 100
-                  </option>
+          <option value="250">
+            AS 250
+          </option>
 
-                  <option value="200">
-                    AS 200
-                  </option>
+          <option value="300">
+            AS 300
+          </option>
 
-                  <option value="250">
-                    AS 250
-                  </option>
+          <option value="400">
+            AS 400
+          </option>
+        </select>
+      </div>
 
-                  <option value="300">
-                    AS 300
-                  </option>
+      <div>
+        <label
+          htmlFor="email"
+          className="mb-1 block text-sm font-semibold text-black"
+        >
+          Email
+        </label>
 
-                  <option value="400">
-                    AS 400
-                  </option>
-                </select>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          className="w-full rounded-lg border border-gray-300 bg-white p-3 text-black"
+        />
+      </div>
 
-                <p className="text-xs text-muted-foreground">
-                  GMC/POC will be determined automatically.
-                </p>
-              </div>
+      <div>
+        <label
+          htmlFor="password"
+          className="mb-1 block text-sm font-semibold text-black"
+        >
+          Password
+        </label>
 
-              <div className="grid gap-2">
-                <Label htmlFor="email">
-                  Email
-                </Label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          className="w-full rounded-lg border border-gray-300 bg-white p-3 text-black"
+        />
+      </div>
 
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) =>
-                    setEmail(
-                      e.target.value
-                    )
-                  }
-                  required
-                />
-              </div>
+      <div>
+        <label
+          htmlFor="repeat_password"
+          className="mb-1 block text-sm font-semibold text-black"
+        >
+          Repeat Password
+        </label>
 
-              <div className="grid gap-2">
-                <Label htmlFor="password">
-                  Password
-                </Label>
+        <input
+          id="repeat_password"
+          name="repeat_password"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          className="w-full rounded-lg border border-gray-300 bg-white p-3 text-black"
+        />
+      </div>
 
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) =>
-                    setPassword(
-                      e.target.value
-                    )
-                  }
-                  required
-                />
-              </div>
+      <div>
+        <label
+          htmlFor="access_code"
+          className="mb-1 block text-sm font-semibold text-black"
+        >
+          Det 055 Access Code
+        </label>
 
-              <div className="grid gap-2">
-                <Label htmlFor="repeat-password">
-                  Repeat Password
-                </Label>
+        <input
+          id="access_code"
+          name="access_code"
+          type="password"
+          required
+          autoComplete="off"
+          className="w-full rounded-lg border border-gray-300 bg-white p-3 text-black"
+        />
 
-                <Input
-                  id="repeat-password"
-                  type="password"
-                  value={
-                    repeatPassword
-                  }
-                  onChange={(e) =>
-                    setRepeatPassword(
-                      e.target.value
-                    )
-                  }
-                  required
-                />
-              </div>
+        <p className="mt-1 text-xs text-gray-500">
+          Get the current access code from Det 055 Inventory staff.
+        </p>
+      </div>
 
-              {error && (
-                <p className="text-sm text-red-500">
-                  {error}
-                </p>
-              )}
+      {message && (
+        <div
+          className={`rounded-lg p-3 text-sm ${
+            success
+              ? "bg-green-50 text-green-700"
+              : "bg-red-50 text-red-700"
+          }`}
+        >
+          {message}
+        </div>
+      )}
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading
-                  ? "Creating account..."
-                  : "Create Account"}
-              </Button>
-            </div>
-
-            <div className="mt-4 text-center text-sm">
-              Already have an account?{" "}
-              <Link
-                href="/auth/login"
-                className="underline underline-offset-4"
-              >
-                Log in
-              </Link>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+      <button
+        type="submit"
+        disabled={
+          isPending ||
+          success
+        }
+        className="rounded-lg bg-black px-4 py-3 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isPending
+          ? "Creating account..."
+          : success
+            ? "Account Created"
+            : "Create Account"}
+      </button>
+    </form>
   );
 }
