@@ -2,8 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import EditItemForm from "./edit-item-form";
 
-export const instant = false;
-
 type Props = {
   params: Promise<{
     inventoryId: string;

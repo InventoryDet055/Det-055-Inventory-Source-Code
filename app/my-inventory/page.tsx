@@ -2,8 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CadetHeader from "@/components/cadet-header";
 
-export const instant = false;
-
 export default async function MyInventoryPage() {
   const supabase = await createClient();
 

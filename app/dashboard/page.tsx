@@ -2,8 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import StaffHeader from "@/components/staff-header";
 
-export const instant = false;
-
 export default async function DashboardPage() {
   const supabase = await createClient();
 

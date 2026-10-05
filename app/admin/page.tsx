@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import StaffHeader from "@/components/staff-header";
 import AdminUsers from "./admin-users";
 
-export const instant = false;
-
 export default async function AdminPage() {
   const supabase =
     await createClient();

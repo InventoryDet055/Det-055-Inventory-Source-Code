@@ -35,6 +35,13 @@ export default function StaffHeader({
             </Link>
 
             <Link
+              href="/wings"
+              className="text-sm font-semibold text-gray-600 transition hover:text-blue-500"
+            >
+              WINGS
+            </Link>
+
+            <Link
               href="/activity"
               className="text-sm font-semibold text-gray-600 transition hover:text-blue-500"
             >
@@ -75,6 +82,13 @@ export default function StaffHeader({
           className="flex-1 border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
         >
           Cadets
+        </Link>
+
+        <Link
+          href="/wings"
+          className="flex-1 border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
+        >
+          WINGS
         </Link>
 
         <Link
