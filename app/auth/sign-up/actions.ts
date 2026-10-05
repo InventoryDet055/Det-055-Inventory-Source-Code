@@ -1,5 +1,6 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 type SignUpResult = {
@@ -140,9 +141,5 @@ export async function signUpCadet(
     };
   }
 
-  return {
-    success: true,
-    message:
-      "Account created. Check your email to confirm your account.",
-  };
+  redirect("/auth/check-email");
 }
