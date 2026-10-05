@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
 
+  const code = requestUrl.searchParams.get("code");
+
   const tokenHash =
     requestUrl.searchParams.get("token_hash");
 
@@ -17,15 +19,44 @@ export async function GET(request: NextRequest) {
   const requestedNext =
     requestUrl.searchParams.get("next");
 
-  // Only permit internal redirects.
+  // Prevent external/open redirects.
   const next =
     requestedNext?.startsWith("/")
       ? requestedNext
       : "/";
 
-  if (tokenHash && type) {
-    const supabase = await createClient();
+  const supabase = await createClient();
 
+  /*
+   * Flow 1:
+   * Standard Supabase confirmation links.
+   *
+   * Used by normal account signup confirmation when
+   * Supabase redirects back with a PKCE code.
+   */
+  if (code) {
+    const { error } =
+      await supabase.auth.exchangeCodeForSession(code);
+
+    if (!error) {
+      return NextResponse.redirect(
+        new URL(next, requestUrl.origin)
+      );
+    }
+
+    console.error(
+      "Auth code exchange error:",
+      error.message
+    );
+  }
+
+  /*
+   * Flow 2:
+   * Token-hash links.
+   *
+   * Used by our password-recovery email template.
+   */
+  if (tokenHash && type) {
     const { error } =
       await supabase.auth.verifyOtp({
         type,
@@ -39,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.error(
-      "Auth confirmation error:",
+      "Auth token verification error:",
       error.message
     );
   }
