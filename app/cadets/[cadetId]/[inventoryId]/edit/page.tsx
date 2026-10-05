@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import {
   notFound,
   redirect,
@@ -7,8 +9,6 @@ import { createClient } from "@/lib/supabase/server";
 import StaffHeader from "@/components/staff-header";
 import EditCadetItemForm from "./edit-item-form";
 
-export const instant = false;
-
 type Props = {
   params: Promise<{
     cadetId: string;
@@ -16,7 +16,7 @@ type Props = {
   }>;
 };
 
-export default async function EditCadetInventoryPage({
+async function EditCadetInventoryContent({
   params,
 }: Props) {
   const {
@@ -296,5 +296,30 @@ export default async function EditCadetInventoryPage({
         </div>
       </main>
     </div>
+  );
+}
+function EditCadetInventoryLoading() {
+  return (
+    <div className="min-h-screen bg-blue-400">
+      <main className="p-4 sm:p-8">
+        <div className="mx-auto max-w-xl">
+          <div className="rounded-xl bg-white p-6 shadow sm:p-8">
+            <p className="text-sm text-gray-600">
+              Loading inventory item...
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function EditCadetInventoryPage({
+  params,
+}: Props) {
+  return (
+    <Suspense fallback={<EditCadetInventoryLoading />}>
+      <EditCadetInventoryContent params={params} />
+    </Suspense>
   );
 }

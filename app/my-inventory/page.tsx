@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
 import CadetHeader from "@/components/cadet-header";
 
-export default async function MyInventoryPage() {
+async function MyInventoryContent() {
   const supabase = await createClient();
 
   const {
@@ -213,5 +215,29 @@ export default async function MyInventoryPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+function MyInventoryLoading() {
+  return (
+    <div className="min-h-screen bg-blue-400">
+      <main className="p-4 sm:p-8">
+        <div className="mx-auto max-w-4xl">
+          <div className="rounded-xl bg-white p-6 shadow">
+            <p className="text-sm text-gray-600">
+              Loading your inventory...
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function MyInventoryPage() {
+  return (
+    <Suspense fallback={<MyInventoryLoading />}>
+      <MyInventoryContent />
+    </Suspense>
   );
 }

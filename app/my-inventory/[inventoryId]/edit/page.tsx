@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
 import EditItemForm from "./edit-item-form";
 
@@ -8,7 +10,7 @@ type Props = {
   }>;
 };
 
-export default async function EditInventoryPage({
+async function EditInventoryContent({
   params,
 }: Props) {
   const { inventoryId } = await params;
@@ -154,5 +156,33 @@ export default async function EditInventoryPage({
         </div>
       </div>
     </main>
+  );
+}
+
+function EditInventoryLoading() {
+  return (
+    <main className="min-h-screen bg-blue-400 p-4 sm:p-8">
+      <div className="mx-auto max-w-xl">
+        <div className="rounded-xl bg-white p-6 shadow sm:p-8">
+          <p className="text-sm text-gray-600">
+            Loading inventory item...
+          </p>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export default function EditInventoryPage({
+  params,
+}: Props) {
+  return (
+    <Suspense
+      fallback={<EditInventoryLoading />}
+    >
+      <EditInventoryContent
+        params={params}
+      />
+    </Suspense>
   );
 }

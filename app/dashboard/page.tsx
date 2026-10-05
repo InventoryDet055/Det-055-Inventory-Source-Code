@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
 import StaffHeader from "@/components/staff-header";
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
+async function DashboardContent() {
+    const supabase = await createClient();
 
   const {
     data: { user },
@@ -320,5 +322,28 @@ export default async function DashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+function DashboardLoading() {
+  return (
+    <div className="min-h-screen bg-blue-400">
+      <main className="p-4 sm:p-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="rounded-xl bg-white p-6 shadow sm:p-8">
+            <p className="text-sm text-gray-600">
+              Loading dashboard...
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
