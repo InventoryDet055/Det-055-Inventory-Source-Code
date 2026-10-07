@@ -487,6 +487,15 @@ export default async function CadetProfilePage({
             </div>
           </div>
 
+{(isAdmin || isCadre) && (
+  <a
+    href={`/cadets/${cadet.id}/wings-export`}
+    className="rounded-lg bg-black px-5 py-3 text-center font-semibold text-white transition hover:bg-gray-800"
+  >
+    Export WINGS CSV
+  </a>
+)}
+
           {/* Quick Stats */}
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl bg-white p-5 shadow">
