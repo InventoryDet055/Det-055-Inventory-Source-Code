@@ -40,12 +40,6 @@ type WingsVariant = {
 };
 
 type ExportRow = {
-  lastName: string;
-  firstName: string;
-  email: string;
-  asClass: number | null;
-  component: string | null;
-
   sourceCategory: string;
   sourceItem: string;
   sourceCut: string | null;
@@ -63,7 +57,7 @@ type ExportRow = {
   uom: string;
 };
 
-function csvEscape(
+function quoteValue(
   value: string | number | null | undefined
 ) {
   const text =
@@ -72,13 +66,6 @@ function csvEscape(
       : String(value);
 
   return `"${text.replace(/"/g, '""')}"`;
-}
-
-function safeFilenamePart(value: string) {
-  return value
-    .trim()
-    .replace(/[^a-zA-Z0-9_-]+/g, "_")
-    .replace(/^_+|_+$/g, "");
 }
 
 export async function GET(
@@ -173,7 +160,7 @@ export async function GET(
 
   /*
    * Only Inventory Admin and Cadre
-   * may export WINGS data.
+   * may use the export.
    */
   if (!isAdmin && !isCadre) {
     return new NextResponse("Forbidden", {
@@ -252,8 +239,8 @@ export async function GET(
   }
 
   /*
-   * Load ALL physical inventory for
-   * this cadet.
+   * Load ALL physical inventory
+   * for this cadet.
    */
   const {
     data: inventoryRows,
@@ -285,7 +272,7 @@ export async function GET(
     inventoryRows ?? [];
 
   /*
-   * Load physical catalog variants.
+   * Load catalog variants.
    */
   const variantIds =
     Array.from(
@@ -297,8 +284,7 @@ export async function GET(
       )
     );
 
-  let variants: CatalogVariant[] =
-    [];
+  let variants: CatalogVariant[] = [];
 
   if (variantIds.length > 0) {
     const {
@@ -379,8 +365,7 @@ export async function GET(
   /*
    * Load WINGS mapping links.
    */
-  let mappingLinks: MappingLink[] =
-    [];
+  let mappingLinks: MappingLink[] = [];
 
   if (variantIds.length > 0) {
     const {
@@ -429,8 +414,7 @@ export async function GET(
       )
     );
 
-  let wingsVariants: WingsVariant[] =
-    [];
+  let wingsVariants: WingsVariant[] = [];
 
   if (wingsItemNumbers.length > 0) {
     const {
@@ -524,19 +508,13 @@ export async function GET(
   }
 
   /*
-   * Build ONE combined export.
+   * Build combined export rows.
    *
-   * Every physical inventory record
-   * appears in the CSV.
-   *
-   * If a WINGS mapping exists, WINGS
-   * fields are populated.
-   *
-   * If no WINGS mapping exists, the
-   * WINGS fields remain blank.
+   * Every physical item appears.
+   * Known WINGS fields are filled in.
+   * Unknown WINGS fields remain blank.
    */
-  const exportRows: ExportRow[] =
-    [];
+  const exportRows: ExportRow[] = [];
 
   for (const record of inventory) {
     const variant =
@@ -563,10 +541,9 @@ export async function GET(
       ) ?? [];
 
     /*
-     * Alternative mappings are not
-     * automatically exported because
-     * doing so could duplicate WINGS
-     * entries.
+     * Do not automatically export
+     * alternative mappings because that
+     * could duplicate WINGS entries.
      */
     const readyLinks =
       links.filter(
@@ -578,27 +555,14 @@ export async function GET(
       );
 
     /*
-     * No mapping:
-     * preserve the physical inventory
-     * row and leave WINGS fields blank.
+     * No known WINGS mapping.
+     *
+     * Keep the physical inventory row
+     * and leave WINGS-specific fields
+     * blank.
      */
     if (readyLinks.length === 0) {
       exportRows.push({
-        lastName:
-          profile.last_name ?? "",
-
-        firstName:
-          profile.first_name ?? "",
-
-        email:
-          profile.email,
-
-        asClass:
-          cadet.as_class,
-
-        component:
-          cadet.component,
-
         sourceCategory:
           appItem.uniform_category,
 
@@ -629,9 +593,9 @@ export async function GET(
     }
 
     /*
-     * Mapped item.
+     * Known mapping.
      *
-     * Composite items may create more
+     * Composite items can create more
      * than one WINGS row.
      */
     for (const link of readyLinks) {
@@ -641,26 +605,12 @@ export async function GET(
         );
 
       /*
-       * A broken mapping should not make
-       * physical inventory disappear.
+       * If a mapping exists but its
+       * WINGS catalog row is missing,
+       * still preserve the physical item.
        */
       if (!wings) {
         exportRows.push({
-          lastName:
-            profile.last_name ?? "",
-
-          firstName:
-            profile.first_name ?? "",
-
-          email:
-            profile.email,
-
-          asClass:
-            cadet.as_class,
-
-          component:
-            cadet.component,
-
           sourceCategory:
             appItem.uniform_category,
 
@@ -691,21 +641,6 @@ export async function GET(
       }
 
       exportRows.push({
-        lastName:
-          profile.last_name ?? "",
-
-        firstName:
-          profile.first_name ?? "",
-
-        email:
-          profile.email,
-
-        asClass:
-          cadet.as_class,
-
-        component:
-          cadet.component,
-
         sourceCategory:
           appItem.uniform_category,
 
@@ -781,93 +716,103 @@ export async function GET(
     );
   });
 
+  /*
+   * Cadre HTML import format.
+   */
   const headers = [
-    "Cadet Last Name",
-    "Cadet First Name",
-    "Email",
-    "AS Class",
-    "Component",
-
-    "Source Category",
-    "Source Item",
-    "Source Cut",
-    "Source Size",
-    "Physical Quantity",
-
-    "WINGS Item No",
-    "WINGS Item Name",
-    "WINGS Category",
-    "WINGS Subcategory",
-    "WINGS Sex",
-    "WINGS Size",
-    "WINGS Quantity",
+    "Cadet",
+    "Status",
+    "Qty",
+    "Item No",
+    "Item Name",
+    "Category",
+    "Subcategory",
+    "Sex",
+    "Size",
     "NSN",
     "UoM",
+    "Source",
+    "Unit Price",
+    "Line Total",
   ];
+
+  const cadetName = [
+    profile.first_name,
+    profile.last_name,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const lines = [
     headers
-      .map(csvEscape)
+      .map(quoteValue)
       .join(","),
 
-    ...exportRows.map(
-      (row) =>
-        [
-          row.lastName,
-          row.firstName,
-          row.email,
-          row.asClass,
-          row.component,
+    ...exportRows.map((row) => {
+      const quantity =
+        row.wingsQuantity === ""
+          ? row.physicalQuantity
+          : row.wingsQuantity;
 
-          row.sourceCategory,
-          row.sourceItem,
-          row.sourceCut,
-          row.sourceSize,
-          row.physicalQuantity,
+      /*
+       * Use official WINGS values when
+       * available. Fall back to physical
+       * inventory values when no WINGS
+       * mapping exists.
+       */
+      const itemName =
+        row.wingsItemName ||
+        row.sourceItem;
 
-          row.wingsItemNo,
-          row.wingsItemName,
-          row.wingsCategory,
-          row.wingsSubcategory,
-          row.wingsSex,
-          row.wingsSize,
-          row.wingsQuantity,
-          row.nsn,
-          row.uom,
-        ]
-          .map(csvEscape)
-          .join(",")
-    ),
+      const category =
+        row.wingsCategory ||
+        row.sourceCategory;
+
+      const subcategory =
+        row.wingsSubcategory || "";
+
+      const sex =
+        row.wingsSex ||
+        row.sourceCut ||
+        "";
+
+      const size =
+        row.wingsSize ||
+        row.sourceSize;
+
+      return [
+        cadetName,
+        "Issued",
+        quantity,
+        row.wingsItemNo,
+        itemName,
+        category,
+        subcategory,
+        sex,
+        size,
+        row.nsn,
+        row.uom,
+        "Catalog",
+        "",
+        "",
+      ]
+        .map(quoteValue)
+        .join(",");
+    }),
   ];
 
   /*
-   * UTF-8 BOM helps Excel interpret
-   * the CSV correctly.
+   * Return plain text in the browser.
+   * Nothing is downloaded.
    */
-  const csv =
-    "\uFEFF" + lines.join("\r\n");
+  const text =
+    lines.join("\n");
 
-  const firstName =
-    safeFilenamePart(
-      profile.first_name ?? "Cadet"
-    );
-
-  const lastName =
-    safeFilenamePart(
-      profile.last_name ?? "Inventory"
-    );
-
-  const filename =
-    `${lastName}_${firstName}_WINGS.csv`;
-
-  return new NextResponse(csv, {
+  return new NextResponse(text, {
     status: 200,
     headers: {
       "Content-Type":
-        "text/csv; charset=utf-8",
-
-      "Content-Disposition":
-        `attachment; filename="${filename}"`,
+        "text/plain; charset=utf-8",
 
       "Cache-Control":
         "no-store",

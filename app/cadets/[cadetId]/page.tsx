@@ -490,9 +490,11 @@ export default async function CadetProfilePage({
 {(isAdmin || isCadre) && (
   <a
     href={`/cadets/${cadet.id}/wings-export`}
+    target="_blank"
+    rel="noreferrer"
     className="rounded-lg bg-black px-5 py-3 text-center font-semibold text-white transition hover:bg-gray-800"
   >
-    Export WINGS CSV
+    View WINGS Export
   </a>
 )}
 
