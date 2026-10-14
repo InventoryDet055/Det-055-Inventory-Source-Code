@@ -125,10 +125,10 @@ async function MyInventoryContent() {
                 </a>
 
                 <a
-                  href="/my-inventory/add"
+                  href="/my-inventory/setup?mode=add"
                   className="rounded-lg bg-black px-5 py-3 text-center font-semibold text-white transition hover:bg-gray-800"
                 >
-                  + Add Item
+                  + Add Items
                 </a>
               </div>
             </div>

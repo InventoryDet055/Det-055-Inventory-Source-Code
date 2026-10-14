@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import {
   notFound,
   redirect,
@@ -5,9 +6,7 @@ import {
 
 import { createClient } from "@/lib/supabase/server";
 import StaffHeader from "@/components/staff-header";
-import AddCadetItemForm from "./add-item-form";
-
-export const instant = false;
+import InventorySetupForm from "@/app/my-inventory/setup/setup-inventory-form";
 
 type Props = {
   params: Promise<{
@@ -15,7 +14,7 @@ type Props = {
   }>;
 };
 
-export default async function AddCadetItemPage({
+async function AddCadetItemsContent({
   params,
 }: Props) {
   const { cadetId } =
@@ -36,11 +35,19 @@ export default async function AddCadetItemPage({
   /*
    * Determine user roles.
    */
-  const { data: profileRoles } =
-    await supabase
-      .from("profile_roles")
-      .select("role_id")
-      .eq("profile_id", user.id);
+  const {
+    data: profileRoles,
+    error: profileRolesError,
+  } = await supabase
+    .from("profile_roles")
+    .select("role_id")
+    .eq("profile_id", user.id);
+
+  if (profileRolesError) {
+    throw new Error(
+      profileRolesError.message
+    );
+  }
 
   const roleIds =
     profileRoles?.map(
@@ -50,11 +57,19 @@ export default async function AddCadetItemPage({
   let roleNames: string[] = [];
 
   if (roleIds.length > 0) {
-    const { data: roles } =
-      await supabase
-        .from("roles")
-        .select("name")
-        .in("id", roleIds);
+    const {
+      data: roles,
+      error: rolesError,
+    } = await supabase
+      .from("roles")
+      .select("name")
+      .in("id", roleIds);
+
+    if (rolesError) {
+      throw new Error(
+        rolesError.message
+      );
+    }
 
     roleNames =
       roles?.map(
@@ -73,7 +88,9 @@ export default async function AddCadetItemPage({
     );
 
   const isCadet =
-    roleNames.includes("cadet");
+    roleNames.includes(
+      "cadet"
+    );
 
   if (
     !isAdmin &&
@@ -85,47 +102,62 @@ export default async function AddCadetItemPage({
   /*
    * Load target cadet.
    */
-  const { data: cadet } =
-    await supabase
-      .from("cadets")
-      .select(
-        "id, profile_id"
-      )
-      .eq("id", cadetId)
-      .maybeSingle();
+  const {
+    data: cadet,
+    error: cadetError,
+  } = await supabase
+    .from("cadets")
+    .select(
+      "id, profile_id"
+    )
+    .eq("id", cadetId)
+    .maybeSingle();
 
-  if (!cadet) {
+  if (
+    cadetError ||
+    !cadet
+  ) {
     notFound();
   }
 
-  const { data: profile } =
-    await supabase
-      .from("profiles")
-      .select(
-        "first_name, last_name, email"
-      )
-      .eq(
-        "id",
-        cadet.profile_id
-      )
-      .single();
+  const {
+    data: profile,
+    error: profileError,
+  } = await supabase
+    .from("profiles")
+    .select(
+      "first_name, last_name, email"
+    )
+    .eq(
+      "id",
+      cadet.profile_id
+    )
+    .single();
 
-  if (!profile) {
+  if (
+    profileError ||
+    !profile
+  ) {
     notFound();
   }
 
-  const { data: items, error: itemsError } =
-    await supabase
-      .from("app_items")
-      .select(`
-        id,
-        uniform_category,
-        display_name,
-        cut_rule,
-        sort_order
-      `)
-      .eq("active", true)
-      .order("sort_order");
+  /*
+   * Load friendly item catalog.
+   */
+  const {
+    data: items,
+    error: itemsError,
+  } = await supabase
+    .from("app_items")
+    .select(`
+      id,
+      uniform_category,
+      display_name,
+      cut_rule,
+      sort_order
+    `)
+    .eq("active", true)
+    .order("sort_order");
 
   if (itemsError) {
     throw new Error(
@@ -133,6 +165,9 @@ export default async function AddCadetItemPage({
     );
   }
 
+  /*
+   * Load all active variants.
+   */
   const {
     data: variants,
     error: variantsError,
@@ -165,11 +200,13 @@ export default async function AddCadetItemPage({
   return (
     <div className="min-h-screen bg-blue-400">
       <StaffHeader
-        showMyInventory={isCadet}
+        showMyInventory={
+          isCadet
+        }
       />
 
       <main className="p-4 sm:p-8">
-        <div className="mx-auto max-w-xl">
+        <div className="mx-auto max-w-4xl">
           <a
             href={`/cadets/${cadetId}`}
             className="text-sm font-semibold text-white hover:text-black"
@@ -178,31 +215,54 @@ export default async function AddCadetItemPage({
           </a>
 
           <div className="mt-4 rounded-xl bg-white p-6 shadow sm:p-8">
-            <p className="text-sm font-semibold uppercase tracking-wide text-blue-400">
-              Inventory Management
-            </p>
-
-            <h1 className="mt-1 text-2xl font-bold text-black">
-              Add Item
-            </h1>
-
-            <p className="mt-2 text-sm text-gray-600">
-              Add issued inventory to{" "}
-              {fullName}.
-            </p>
-
-            <div className="mt-6">
-              <AddCadetItemForm
-                cadetId={cadetId}
-                items={items ?? []}
-                variants={
-                  variants ?? []
-                }
-              />
-            </div>
+            <InventorySetupForm
+              items={items ?? []}
+              variants={
+                variants ?? []
+              }
+              mode="add"
+              staffCadetId={
+                cadetId
+              }
+              staffCadetName={
+                fullName
+              }
+            />
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+function AddCadetItemsLoading() {
+  return (
+    <div className="min-h-screen bg-blue-400">
+      <main className="p-4 sm:p-8">
+        <div className="mx-auto max-w-4xl">
+          <div className="rounded-xl bg-white p-6 shadow sm:p-8">
+            <p className="text-sm text-gray-600">
+              Loading inventory...
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function AddCadetItemsPage(
+  props: Props
+) {
+  return (
+    <Suspense
+      fallback={
+        <AddCadetItemsLoading />
+      }
+    >
+      <AddCadetItemsContent
+        {...props}
+      />
+    </Suspense>
   );
 }

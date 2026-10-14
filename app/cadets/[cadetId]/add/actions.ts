@@ -3,7 +3,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export async function addCadetInventoryItem(
+type SubmittedInventoryItem = {
+  catalog_variant_id: string;
+  quantity: number;
+};
+
+export async function addCadetInventoryItems(
   formData: FormData
 ) {
   const supabase = await createClient();
@@ -20,32 +25,24 @@ export async function addCadetInventoryItem(
     formData.get("cadet_id") ?? ""
   );
 
-  const variantId = String(
-    formData.get("catalog_variant_id") ?? ""
+  const rawInventory = String(
+    formData.get("inventory_json") ?? ""
   );
 
-  const quantity = Number(
-    formData.get("quantity")
-  );
-
-  if (!cadetId || !variantId) {
+  if (!cadetId) {
     throw new Error(
-      "Cadet or inventory item was not provided."
+      "Cadet was not provided."
     );
   }
 
-  if (
-    !Number.isInteger(quantity) ||
-    quantity < 1
-  ) {
+  if (!rawInventory) {
     throw new Error(
-      "Quantity must be at least 1."
+      "No inventory data was submitted."
     );
   }
 
   /*
-   * Verify that the signed-in user is
-   * Inventory Admin or Inventory Assistant.
+   * Verify Admin / Assistant permissions.
    */
   const {
     data: profileRoles,
@@ -104,7 +101,7 @@ export async function addCadetInventoryItem(
   }
 
   /*
-   * Confirm the target cadet exists.
+   * Confirm target cadet exists.
    */
   const {
     data: cadet,
@@ -122,64 +119,116 @@ export async function addCadetInventoryItem(
   }
 
   /*
-   * Validate the selected catalog variant.
+   * Parse submitted inventory.
+   */
+  let submitted:
+    SubmittedInventoryItem[];
+
+  try {
+    submitted =
+      JSON.parse(rawInventory);
+  } catch {
+    throw new Error(
+      "Inventory submission was invalid."
+    );
+  }
+
+  if (
+    !Array.isArray(submitted) ||
+    submitted.length === 0
+  ) {
+    throw new Error(
+      "Select at least one inventory item."
+    );
+  }
+
+  /*
+   * Combine duplicate variants within
+   * the same submission.
+   */
+  const merged =
+    new Map<string, number>();
+
+  for (const item of submitted) {
+    if (
+      !item.catalog_variant_id ||
+      !Number.isInteger(
+        item.quantity
+      ) ||
+      item.quantity < 1
+    ) {
+      throw new Error(
+        "One or more inventory entries are invalid."
+      );
+    }
+
+    merged.set(
+      item.catalog_variant_id,
+      (
+        merged.get(
+          item.catalog_variant_id
+        ) ?? 0
+      ) + item.quantity
+    );
+  }
+
+  const variantIds = [
+    ...merged.keys(),
+  ];
+
+  /*
+   * Validate variants.
    */
   const {
-    data: variant,
+    data: validVariants,
     error: variantError,
   } = await supabase
     .from("catalog_variants")
     .select(`
       id,
-      app_item_id,
-      active
+      app_items!inner (
+        active
+      )
     `)
-    .eq("id", variantId)
+    .in("id", variantIds)
     .eq("active", true)
-    .single();
+    .eq(
+      "app_items.active",
+      true
+    );
 
-  if (variantError || !variant) {
+  if (variantError) {
     throw new Error(
-      "Selected inventory variant is invalid."
+      variantError.message
+    );
+  }
+
+  if (
+    (validVariants?.length ?? 0) !==
+    variantIds.length
+  ) {
+    throw new Error(
+      "One or more selected inventory variants are no longer valid."
     );
   }
 
   /*
-   * Make sure the friendly app item
-   * itself is also active.
+   * Find quantities the cadet already has.
    */
   const {
-    data: appItem,
-    error: appItemError,
-  } = await supabase
-    .from("app_items")
-    .select("id")
-    .eq("id", variant.app_item_id)
-    .eq("active", true)
-    .single();
-
-  if (appItemError || !appItem) {
-    throw new Error(
-      "Selected inventory item is inactive."
-    );
-  }
-
-  /*
-   * Check whether the cadet already owns
-   * this exact item / cut / size variant.
-   */
-  const {
-    data: existing,
+    data: existingRows,
     error: existingError,
   } = await supabase
     .from("cadet_inventory")
-    .select("id, quantity")
+    .select(`
+      catalog_variant_id,
+      quantity
+    `)
     .eq("cadet_id", cadetId)
-    .eq(
+    .in(
       "catalog_variant_id",
-      variantId
-    )
-    .maybeSingle();
+      variantIds
+    );
 
   if (existingError) {
     throw new Error(
@@ -187,47 +236,53 @@ export async function addCadetInventoryItem(
     );
   }
 
-  if (existing) {
-    /*
-     * Same exact variant already exists:
-     * increase quantity instead of creating
-     * a duplicate row.
-     */
-    const { error } =
-      await supabase
-        .from("cadet_inventory")
-        .update({
-          quantity:
-            Number(
-              existing.quantity
-            ) + quantity,
-        })
-        .eq("id", existing.id);
+  const existingMap =
+    new Map<string, number>(
+      (existingRows ?? []).map(
+        (row) => [
+          row.catalog_variant_id,
+          Number(row.quantity),
+        ]
+      )
+    );
 
-    if (error) {
-      throw new Error(
-        error.message
-      );
-    }
-  } else {
-    /*
-     * New variant for this cadet.
-     */
-    const { error } =
-      await supabase
-        .from("cadet_inventory")
-        .insert({
-          cadet_id: cadetId,
-          catalog_variant_id:
-            variantId,
-          quantity,
-        });
+  /*
+   * Staff Add Items always ADDS to the
+   * cadet's existing quantity.
+   */
+  const rows =
+    variantIds.map(
+      (variantId) => ({
+        cadet_id: cadetId,
 
-    if (error) {
-      throw new Error(
-        error.message
-      );
-    }
+        catalog_variant_id:
+          variantId,
+
+        quantity:
+          (
+            existingMap.get(
+              variantId
+            ) ?? 0
+          ) +
+          merged.get(
+            variantId
+          )!,
+      })
+    );
+
+  const {
+    error: upsertError,
+  } = await supabase
+    .from("cadet_inventory")
+    .upsert(rows, {
+      onConflict:
+        "cadet_id,catalog_variant_id",
+    });
+
+  if (upsertError) {
+    throw new Error(
+      upsertError.message
+    );
   }
 
   redirect(

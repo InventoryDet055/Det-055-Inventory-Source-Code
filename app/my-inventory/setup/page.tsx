@@ -1,10 +1,25 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
 import InventorySetupForm from "./setup-inventory-form";
 
-export const instant = false;
+type Props = {
+  searchParams: Promise<{
+    mode?: string | string[];
+  }>;
+};
 
-export default async function InventorySetupPage() {
+async function InventorySetupContent({
+  searchParams,
+}: Props) {
+  const params = await searchParams;
+
+  const mode =
+    params.mode === "add"
+      ? "add"
+      : "setup";
+
   const supabase = await createClient();
 
   const {
@@ -17,7 +32,9 @@ export default async function InventorySetupPage() {
 
   const { data: cadet } = await supabase
     .from("cadets")
-    .select("id, inventory_setup_completed_at")
+    .select(
+      "id, inventory_setup_completed_at"
+    )
     .eq("profile_id", user.id)
     .eq("status", "active")
     .maybeSingle();
@@ -26,12 +43,31 @@ export default async function InventorySetupPage() {
     redirect("/my-inventory");
   }
 
-  // Initial setup is intended to be completed once.
-  if (cadet.inventory_setup_completed_at) {
+  /*
+   * Initial setup can only be completed once.
+   */
+  if (
+    mode === "setup" &&
+    cadet.inventory_setup_completed_at
+  ) {
     redirect("/my-inventory");
   }
 
-  const { data: items, error: itemsError } = await supabase
+  /*
+   * The Add Items workflow is intended
+   * for cadets who already completed setup.
+   */
+  if (
+    mode === "add" &&
+    !cadet.inventory_setup_completed_at
+  ) {
+    redirect("/my-inventory/setup");
+  }
+
+  const {
+    data: items,
+    error: itemsError,
+  } = await supabase
     .from("app_items")
     .select(`
       id,
@@ -44,12 +80,19 @@ export default async function InventorySetupPage() {
     .order("sort_order");
 
   if (itemsError) {
-    throw new Error(itemsError.message);
+    throw new Error(
+      itemsError.message
+    );
   }
 
-  // We currently have 1,049 variants, so request beyond
-  // Supabase's typical 1,000-row response limit.
-  const { data: variants, error: variantsError } = await supabase
+  /*
+   * We currently have more than
+   * Supabase's normal 1,000-row limit.
+   */
+  const {
+    data: variants,
+    error: variantsError,
+  } = await supabase
     .from("catalog_variants")
     .select(`
       id,
@@ -64,7 +107,9 @@ export default async function InventorySetupPage() {
     .range(0, 1999);
 
   if (variantsError) {
-    throw new Error(variantsError.message);
+    throw new Error(
+      variantsError.message
+    );
   }
 
   return (
@@ -81,9 +126,40 @@ export default async function InventorySetupPage() {
           <InventorySetupForm
             items={items ?? []}
             variants={variants ?? []}
+            mode={mode}
           />
         </div>
       </div>
     </main>
+  );
+}
+
+function InventorySetupLoading() {
+  return (
+    <main className="min-h-screen bg-blue-400 p-4 sm:p-8">
+      <div className="mx-auto max-w-4xl">
+        <div className="rounded-xl bg-white p-6 shadow sm:p-8">
+          <p className="text-sm text-gray-600">
+            Loading inventory...
+          </p>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export default function InventorySetupPage(
+  props: Props
+) {
+  return (
+    <Suspense
+      fallback={
+        <InventorySetupLoading />
+      }
+    >
+      <InventorySetupContent
+        {...props}
+      />
+    </Suspense>
   );
 }
