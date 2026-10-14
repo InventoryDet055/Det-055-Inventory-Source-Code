@@ -355,7 +355,49 @@ async function AdminContent() {
               }
             />
           </div>
+<div className="mt-6 rounded-xl bg-white p-6 shadow sm:p-8">
+  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <p className="text-sm font-semibold uppercase tracking-wide text-blue-400">
+        Backup & Recovery
+      </p>
 
+      <h2 className="mt-1 text-xl font-bold text-black">
+        Full Database Backup
+      </h2>
+
+      <p className="mt-2 max-w-2xl text-sm text-gray-600">
+        Download a complete snapshot of the Det 055 Inventory database.
+        Store periodic copies in the Inventory Google Drive so the
+        inventory system can be reconstructed if the live database is
+        ever damaged or lost.
+      </p>
+    </div>
+
+    <a
+      href="/admin/backup"
+      className="shrink-0 rounded-lg bg-black px-5 py-3 text-center font-semibold text-white transition hover:bg-gray-800"
+    >
+      Download Full Backup
+    </a>
+  </div>
+
+  <div className="mt-5 rounded-lg bg-gray-50 p-4">
+    <p className="text-sm font-semibold text-black">
+      Backup includes
+    </p>
+
+    <p className="mt-1 text-sm text-gray-600">
+      Accounts, cadets, roles, inventory, inventory history,
+      application catalog, WINGS catalog, and WINGS mappings.
+    </p>
+
+    <p className="mt-2 text-xs text-gray-500">
+      Authentication passwords are managed by Supabase Auth and are not
+      contained in the backup.
+    </p>
+  </div>
+</div>
           <AdminUsers
             users={users}
             currentProfileId={
