@@ -7,9 +7,15 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Det 055 Inventory",
-  description: "AFROTC Detachment 055 Inventory Management System",
+  description:
+    "AFROTC Detachment 055 Inventory Management System",
 };
 
 export default function RootLayout({
@@ -19,7 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.className} antialiased`}>
+      <body
+        className={`${geistSans.className} antialiased`}
+      >
         {children}
       </body>
     </html>

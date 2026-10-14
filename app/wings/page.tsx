@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
 import StaffHeader from "@/components/staff-header";
 import WingsTable, {
@@ -6,9 +8,7 @@ import WingsTable, {
   WingsRow,
 } from "./wings-table";
 
-export const instant = false;
-
-export default async function WingsPage() {
+async function WingsContent() {
   const supabase =
     await createClient();
 
@@ -489,6 +489,90 @@ export default async function WingsPage() {
     [];
 
   /*
+   * Helper used whenever a physical
+   * inventory record cannot currently
+   * produce a valid WINGS catalog row.
+   *
+   * The physical inventory is still
+   * preserved and shown in the unified
+   * WINGS view.
+   */
+  function addPhysicalFallback({
+    record,
+    cadet,
+    profile,
+    variant,
+    appItem,
+  }: {
+    record: {
+      id: string;
+      quantity: number;
+    };
+
+    cadet: {
+      id: string;
+      as_class: number | null;
+      component: string | null;
+    };
+
+    profile: {
+      first_name: string | null;
+      last_name: string | null;
+      email: string;
+    };
+
+    variant: {
+      cut: string | null;
+      size_display: string;
+    };
+
+    appItem: {
+      uniform_category: string;
+      display_name: string;
+    };
+  }) {
+    unmappedRows.push({
+      id:
+        record.id,
+
+      cadetId:
+        cadet.id,
+
+      firstName:
+        profile.first_name ??
+        "",
+
+      lastName:
+        profile.last_name ??
+        "",
+
+      email:
+        profile.email,
+
+      asClass:
+        cadet.as_class,
+
+      component:
+        cadet.component,
+
+      sourceCategory:
+        appItem.uniform_category,
+
+      sourceItem:
+        appItem.display_name,
+
+      sourceCut:
+        variant.cut,
+
+      sourceSize:
+        variant.size_display,
+
+      quantity:
+        record.quantity,
+    });
+  }
+
+  /*
    * Translate every current
    * inventory record.
    */
@@ -536,10 +620,9 @@ export default async function WingsPage() {
 
     /*
      * Alternative mappings are
-     * intentionally excluded from
-     * the ready-to-enter rows so
-     * that we do not create duplicate
-     * WINGS entries.
+     * intentionally excluded so
+     * they do not create duplicate
+     * WINGS rows.
      */
     const readyLinks =
       links.filter(
@@ -554,46 +637,24 @@ export default async function WingsPage() {
       readyLinks.length ===
       0
     ) {
-      unmappedRows.push({
-        id: record.id,
-        cadetId:
-          cadet.id,
-
-        firstName:
-          profile.first_name ??
-          "",
-
-        lastName:
-          profile.last_name ??
-          "",
-
-        email:
-          profile.email,
-
-        asClass:
-          cadet.as_class,
-
-        component:
-          cadet.component,
-
-        sourceCategory:
-          appItem.uniform_category,
-
-        sourceItem:
-          appItem.display_name,
-
-        sourceCut:
-          variant.cut,
-
-        sourceSize:
-          variant.size_display,
-
-        quantity:
-          record.quantity,
+      addPhysicalFallback({
+        record,
+        cadet,
+        profile,
+        variant,
+        appItem,
       });
 
       continue;
     }
+
+    /*
+     * A mapped physical item can
+     * create one or more WINGS
+     * catalog rows.
+     */
+    let createdWingsRow =
+      false;
 
     for (
       const link of readyLinks
@@ -603,6 +664,12 @@ export default async function WingsPage() {
           link.wings_item_no
         );
 
+      /*
+       * If a mapping link exists but
+       * the referenced WINGS row does
+       * not, do not discard the physical
+       * inventory record.
+       */
       if (!wings) {
         continue;
       }
@@ -679,9 +746,31 @@ export default async function WingsPage() {
         mappingRole:
           link.mapping_role,
       });
+
+      createdWingsRow =
+        true;
+    }
+
+    /*
+     * A mapping link that points to a
+     * missing WINGS catalog row should
+     * still leave the physical record
+     * visible in the unified inventory.
+     */
+    if (!createdWingsRow) {
+      addPhysicalFallback({
+        record,
+        cadet,
+        profile,
+        variant,
+        appItem,
+      });
     }
   }
 
+  /*
+   * Stable ordering for mapped rows.
+   */
   wingsRows.sort(
     (a, b) => {
       const lastName =
@@ -714,6 +803,11 @@ export default async function WingsPage() {
     }
   );
 
+  /*
+   * Stable ordering for physical
+   * records without known WINGS
+   * catalog data.
+   */
   unmappedRows.sort(
     (a, b) => {
       const lastName =
@@ -727,6 +821,17 @@ export default async function WingsPage() {
         return lastName;
       }
 
+      const firstName =
+        a.firstName.localeCompare(
+          b.firstName
+        );
+
+      if (
+        firstName !== 0
+      ) {
+        return firstName;
+      }
+
       return (
         a.sourceItem.localeCompare(
           b.sourceItem
@@ -735,13 +840,26 @@ export default async function WingsPage() {
     }
   );
 
+  /*
+   * Include cadets whose physical
+   * inventory does not yet have
+   * WINGS catalog data.
+   */
   const representedCadets =
-    new Set(
-      wingsRows.map(
+    new Set([
+      ...wingsRows.map(
         (row) =>
           row.cadetId
-      )
-    ).size;
+      ),
+
+      ...unmappedRows.map(
+        (row) =>
+          row.cadetId
+      ),
+    ]).size;
+
+  const totalInventoryRecords =
+    inventory.length;
 
   return (
     <div className="min-h-screen bg-blue-400">
@@ -753,7 +871,6 @@ export default async function WingsPage() {
 
       <main className="p-4 sm:p-8">
         <div className="mx-auto max-w-7xl">
-          {/* Header */}
           <div className="rounded-xl bg-white p-6 shadow sm:p-8">
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-400">
               Inventory Management
@@ -764,32 +881,31 @@ export default async function WingsPage() {
             </h1>
 
             <p className="mt-2 text-sm text-gray-600">
-              Translate Det 055 cadet inventory into WINGS-ready records.
+              View Det 055 physical inventory with known WINGS catalog information populated where available.
             </p>
           </div>
 
-          {/* Stats */}
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl bg-white p-5 shadow">
               <p className="text-sm font-semibold text-gray-500">
-                WINGS-Ready Rows
+                Inventory Records
               </p>
 
               <p className="mt-2 text-3xl font-bold text-black">
                 {
-                  wingsRows.length
+                  totalInventoryRecords
                 }
               </p>
             </div>
 
             <div className="rounded-xl bg-white p-5 shadow">
               <p className="text-sm font-semibold text-gray-500">
-                Unmapped Records
+                WINGS Catalog Rows
               </p>
 
               <p className="mt-2 text-3xl font-bold text-black">
                 {
-                  unmappedRows.length
+                  wingsRows.length
                 }
               </p>
             </div>
@@ -818,5 +934,33 @@ export default async function WingsPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+function WingsLoading() {
+  return (
+    <div className="min-h-screen bg-blue-400">
+      <main className="p-4 sm:p-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-xl bg-white p-6 shadow sm:p-8">
+            <p className="text-sm text-gray-600">
+              Loading WINGS inventory...
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function WingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <WingsLoading />
+      }
+    >
+      <WingsContent />
+    </Suspense>
   );
 }

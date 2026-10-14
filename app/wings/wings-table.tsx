@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
 
 export type WingsRow = {
   id: string;
@@ -56,8 +59,41 @@ type ComponentFilter =
   | "GMC"
   | "POC";
 
+type DisplayRow = {
+  id: string;
+  cadetId: string;
+
+  firstName: string;
+  lastName: string;
+  email: string;
+
+  asClass: number | null;
+  component: string | null;
+
+  sourceCategory: string;
+  sourceItem: string;
+  sourceCut: string | null;
+  sourceSize: string;
+
+  quantity: number;
+
+  wingsItemNo: string;
+  itemName: string;
+  category: string;
+  subcategory: string;
+  sex: string;
+  size: string;
+  nsn: string;
+  uom: string;
+  mappingRole: string;
+};
+
 function csvEscape(
-  value: string | number | null | undefined
+  value:
+    | string
+    | number
+    | null
+    | undefined
 ) {
   const text =
     value === null ||
@@ -86,6 +122,212 @@ export default function WingsTable({
       "ALL"
     );
 
+  /*
+   * Combine mapped and unmapped
+   * physical inventory into one view.
+   *
+   * If we know the WINGS catalog
+   * information, use it.
+   *
+   * Otherwise preserve the physical
+   * item and leave unknown WINGS
+   * fields blank.
+   */
+  const displayRows =
+    useMemo<DisplayRow[]>(
+      () => {
+        const mapped:
+          DisplayRow[] =
+          rows.map(
+            (row) => ({
+              id: row.id,
+
+              cadetId:
+                row.cadetId,
+
+              firstName:
+                row.firstName,
+
+              lastName:
+                row.lastName,
+
+              email:
+                row.email,
+
+              asClass:
+                row.asClass,
+
+              component:
+                row.component,
+
+              sourceCategory:
+                row.sourceCategory,
+
+              sourceItem:
+                row.sourceItem,
+
+              sourceCut:
+                row.sourceCut,
+
+              sourceSize:
+                row.sourceSize,
+
+              quantity:
+                row.wingsQuantity,
+
+              wingsItemNo:
+                row.wingsItemNo,
+
+              itemName:
+                row.wingsItemName ||
+                row.sourceItem,
+
+              category:
+                row.wingsCategory ||
+                row.sourceCategory,
+
+              subcategory:
+                row.wingsSubcategory ||
+                "",
+
+              sex:
+                row.wingsSex ||
+                row.sourceCut ||
+                "",
+
+              size:
+                row.wingsSize ||
+                row.sourceSize,
+
+              nsn:
+                row.nsn ?? "",
+
+              uom:
+                row.uom ?? "",
+
+              mappingRole:
+                row.mappingRole,
+            })
+          );
+
+        const unmapped:
+          DisplayRow[] =
+          unmappedRows.map(
+            (row) => ({
+              id:
+                `unmapped-${row.id}`,
+
+              cadetId:
+                row.cadetId,
+
+              firstName:
+                row.firstName,
+
+              lastName:
+                row.lastName,
+
+              email:
+                row.email,
+
+              asClass:
+                row.asClass,
+
+              component:
+                row.component,
+
+              sourceCategory:
+                row.sourceCategory,
+
+              sourceItem:
+                row.sourceItem,
+
+              sourceCut:
+                row.sourceCut,
+
+              sourceSize:
+                row.sourceSize,
+
+              quantity:
+                row.quantity,
+
+              /*
+               * Unknown WINGS fields
+               * intentionally remain
+               * blank.
+               */
+              wingsItemNo: "",
+
+              itemName:
+                row.sourceItem,
+
+              category:
+                row.sourceCategory,
+
+              subcategory: "",
+
+              sex:
+                row.sourceCut ??
+                "",
+
+              size:
+                row.sourceSize,
+
+              nsn: "",
+
+              uom: "",
+
+              mappingRole: "",
+            })
+          );
+
+        return [
+          ...mapped,
+          ...unmapped,
+        ].sort(
+          (a, b) => {
+            const lastName =
+              a.lastName.localeCompare(
+                b.lastName
+              );
+
+            if (
+              lastName !== 0
+            ) {
+              return lastName;
+            }
+
+            const firstName =
+              a.firstName.localeCompare(
+                b.firstName
+              );
+
+            if (
+              firstName !== 0
+            ) {
+              return firstName;
+            }
+
+            const item =
+              a.sourceItem.localeCompare(
+                b.sourceItem
+              );
+
+            if (item !== 0) {
+              return item;
+            }
+
+            return a.sourceSize.localeCompare(
+              b.sourceSize
+            );
+          }
+        );
+      },
+      [
+        rows,
+        unmappedRows,
+      ]
+    );
+
   const filteredRows =
     useMemo(() => {
       const query =
@@ -93,59 +335,7 @@ export default function WingsTable({
           .trim()
           .toLowerCase();
 
-      return rows.filter(
-        (row) => {
-          const matchesComponent =
-            componentFilter ===
-              "ALL" ||
-            row.component ===
-              componentFilter;
-
-          const searchable = [
-            row.firstName,
-            row.lastName,
-            row.email,
-            row.asClass,
-            row.component,
-            row.sourceItem,
-            row.sourceSize,
-            row.wingsItemNo,
-            row.wingsItemName,
-            row.wingsCategory,
-            row.wingsSubcategory,
-            row.wingsSex,
-            row.wingsSize,
-            row.nsn,
-          ]
-            .join(" ")
-            .toLowerCase();
-
-          const matchesSearch =
-            !query ||
-            searchable.includes(
-              query
-            );
-
-          return (
-            matchesComponent &&
-            matchesSearch
-          );
-        }
-      );
-    }, [
-      rows,
-      search,
-      componentFilter,
-    ]);
-
-  const filteredUnmapped =
-    useMemo(() => {
-      const query =
-        search
-          .trim()
-          .toLowerCase();
-
-      return unmappedRows.filter(
+      return displayRows.filter(
         (row) => {
           const matchesComponent =
             componentFilter ===
@@ -163,6 +353,13 @@ export default function WingsTable({
             row.sourceItem,
             row.sourceCut,
             row.sourceSize,
+            row.wingsItemNo,
+            row.itemName,
+            row.category,
+            row.subcategory,
+            row.sex,
+            row.size,
+            row.nsn,
           ]
             .join(" ")
             .toLowerCase();
@@ -180,7 +377,7 @@ export default function WingsTable({
         }
       );
     }, [
-      unmappedRows,
+      displayRows,
       search,
       componentFilter,
     ]);
@@ -196,7 +393,7 @@ export default function WingsTable({
       "Source Cut",
       "Source Size",
       "WINGS Item No",
-      "WINGS Item Name",
+      "Item Name",
       "Category",
       "Subcategory",
       "Sex",
@@ -211,6 +408,7 @@ export default function WingsTable({
       headers
         .map(csvEscape)
         .join(","),
+
       ...filteredRows.map(
         (row) =>
           [
@@ -223,12 +421,12 @@ export default function WingsTable({
             row.sourceCut,
             row.sourceSize,
             row.wingsItemNo,
-            row.wingsItemName,
-            row.wingsCategory,
-            row.wingsSubcategory,
-            row.wingsSex,
-            row.wingsSize,
-            row.wingsQuantity,
+            row.itemName,
+            row.category,
+            row.subcategory,
+            row.sex,
+            row.size,
+            row.quantity,
             row.nsn,
             row.uom,
             row.mappingRole,
@@ -238,15 +436,23 @@ export default function WingsTable({
       ),
     ];
 
-    const blob = new Blob(
-      [lines.join("\n")],
-      {
-        type: "text/csv;charset=utf-8;",
-      }
-    );
+    const blob =
+      new Blob(
+        [
+          lines.join(
+            "\n"
+          ),
+        ],
+        {
+          type:
+            "text/csv;charset=utf-8;",
+        }
+      );
 
     const url =
-      URL.createObjectURL(blob);
+      URL.createObjectURL(
+        blob
+      );
 
     const link =
       document.createElement(
@@ -254,6 +460,7 @@ export default function WingsTable({
       );
 
     link.href = url;
+
     link.download =
       "Det055_WINGS_Inventory.csv";
 
@@ -262,14 +469,16 @@ export default function WingsTable({
     );
 
     link.click();
+
     link.remove();
 
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(
+      url
+    );
   }
 
   return (
     <>
-      {/* Controls */}
       <div className="mt-6 rounded-xl bg-white p-6 shadow">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <input
@@ -298,14 +507,28 @@ export default function WingsTable({
         <div className="mt-4 flex flex-wrap gap-2">
           {(
             [
-              ["ALL", "All"],
-              ["GMC", "GMC"],
-              ["POC", "POC"],
+              [
+                "ALL",
+                "All",
+              ],
+              [
+                "GMC",
+                "GMC",
+              ],
+              [
+                "POC",
+                "POC",
+              ],
             ] as const
           ).map(
-            ([value, label]) => (
+            ([
+              value,
+              label,
+            ]) => (
               <button
-                key={value}
+                key={
+                  value
+                }
                 type="button"
                 onClick={() =>
                   setComponentFilter(
@@ -326,143 +549,22 @@ export default function WingsTable({
         </div>
       </div>
 
-      {/* Unmapped Warning */}
-      {filteredUnmapped.length >
-        0 && (
-        <div className="mt-6 rounded-xl border-2 border-black bg-white p-6 shadow">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-black">
-                Unmapped Inventory
-              </h2>
-
-              <p className="mt-1 text-sm text-gray-600">
-                These records do
-                not currently have a
-                valid WINGS mapping
-                and require review
-                before entry.
-              </p>
-            </div>
-
-            <span className="rounded-full bg-black px-3 py-1 text-sm font-semibold text-white">
-              {
-                filteredUnmapped.length
-              }{" "}
-              unresolved
-            </span>
-          </div>
-
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[800px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-gray-500">
-                  <th className="pb-3 pr-4">
-                    Cadet
-                  </th>
-
-                  <th className="pb-3 pr-4">
-                    AS
-                  </th>
-
-                  <th className="pb-3 pr-4">
-                    Component
-                  </th>
-
-                  <th className="pb-3 pr-4">
-                    Item
-                  </th>
-
-                  <th className="pb-3 pr-4">
-                    Cut
-                  </th>
-
-                  <th className="pb-3 pr-4">
-                    Size
-                  </th>
-
-                  <th className="pb-3">
-                    Qty
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredUnmapped.map(
-                  (row) => (
-                    <tr
-                      key={row.id}
-                      className="border-b border-gray-100 last:border-0"
-                    >
-                      <td className="py-3 pr-4">
-                        <Link
-                          href={`/cadets/${row.cadetId}`}
-                          className="font-semibold text-blue-500 hover:text-black"
-                        >
-                          {
-                            row.lastName
-                          }
-                          ,{" "}
-                          {
-                            row.firstName
-                          }
-                        </Link>
-                      </td>
-
-                      <td className="py-3 pr-4">
-                        {row.asClass ??
-                          "—"}
-                      </td>
-
-                      <td className="py-3 pr-4">
-                        {row.component ??
-                          "—"}
-                      </td>
-
-                      <td className="py-3 pr-4 font-medium text-black">
-                        {
-                          row.sourceItem
-                        }
-                      </td>
-
-                      <td className="py-3 pr-4">
-                        {row.sourceCut ??
-                          "—"}
-                      </td>
-
-                      <td className="py-3 pr-4">
-                        {
-                          row.sourceSize
-                        }
-                      </td>
-
-                      <td className="py-3">
-                        {
-                          row.quantity
-                        }
-                      </td>
-                    </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* WINGS Table */}
       <div className="mt-6 rounded-xl bg-white p-6 shadow">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-black">
-              WINGS-Ready Records
+              Inventory Records
             </h2>
 
             <p className="mt-1 text-sm text-gray-600">
-              Primary and
-              composite mappings
-              ready for WINGS
-              entry.
+              All physical
+              inventory is shown
+              together. Known
+              WINGS catalog fields
+              are populated when
+              available; unknown
+              WINGS fields remain
+              blank.
             </p>
           </div>
 
@@ -477,7 +579,7 @@ export default function WingsTable({
         {filteredRows.length ===
         0 ? (
           <div className="py-10 text-center text-gray-500">
-            No WINGS-ready
+            No inventory
             records match the
             current filters.
           </div>
@@ -489,39 +591,51 @@ export default function WingsTable({
                   <th className="pb-3 pr-4">
                     Cadet
                   </th>
+
                   <th className="pb-3 pr-4">
                     AS
                   </th>
+
                   <th className="pb-3 pr-4">
                     Component
                   </th>
+
                   <th className="pb-3 pr-4">
                     Source Item
                   </th>
+
                   <th className="pb-3 pr-4">
                     WINGS Item No
                   </th>
+
                   <th className="pb-3 pr-4">
                     Item Name
                   </th>
+
                   <th className="pb-3 pr-4">
                     Category
                   </th>
+
                   <th className="pb-3 pr-4">
                     Subcategory
                   </th>
+
                   <th className="pb-3 pr-4">
                     Sex
                   </th>
+
                   <th className="pb-3 pr-4">
                     Size
                   </th>
+
                   <th className="pb-3 pr-4">
                     Qty
                   </th>
+
                   <th className="pb-3 pr-4">
                     NSN
                   </th>
+
                   <th className="pb-3">
                     UoM
                   </th>
@@ -532,7 +646,9 @@ export default function WingsTable({
                 {filteredRows.map(
                   (row) => (
                     <tr
-                      key={row.id}
+                      key={
+                        row.id
+                      }
                       className="border-b border-gray-100 last:border-0"
                     >
                       <td className="py-3 pr-4">
@@ -589,46 +705,50 @@ export default function WingsTable({
 
                       <td className="py-3 pr-4 font-medium text-black">
                         {
-                          row.wingsItemName
+                          row.itemName
                         }
                       </td>
 
                       <td className="py-3 pr-4">
                         {
-                          row.wingsCategory
+                          row.category
                         }
                       </td>
 
                       <td className="py-3 pr-4">
                         {
-                          row.wingsSubcategory
+                          row.subcategory
                         }
                       </td>
 
                       <td className="py-3 pr-4">
-                        {row.wingsSex ??
-                          "—"}
+                        {
+                          row.sex
+                        }
                       </td>
 
                       <td className="py-3 pr-4">
-                        {row.wingsSize ??
-                          "—"}
+                        {
+                          row.size
+                        }
                       </td>
 
                       <td className="py-3 pr-4 font-semibold">
                         {
-                          row.wingsQuantity
+                          row.quantity
                         }
                       </td>
 
                       <td className="py-3 pr-4 font-mono text-xs">
-                        {row.nsn ??
-                          "—"}
+                        {
+                          row.nsn
+                        }
                       </td>
 
                       <td className="py-3">
-                        {row.uom ??
-                          "—"}
+                        {
+                          row.uom
+                        }
                       </td>
                     </tr>
                   )
