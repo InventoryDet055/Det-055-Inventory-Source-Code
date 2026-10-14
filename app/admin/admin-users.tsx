@@ -1,7 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import {
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
+
+import { useRouter } from "next/navigation";
+
+import {
+  convertProfileToCadre,
   setCadetStatus,
   setProfileRole,
 } from "./actions";
@@ -197,6 +205,62 @@ export default function AdminUsers({
 
                 <div className="mt-6 border-t border-gray-200 pt-5">
                   <h3 className="text-sm font-bold uppercase tracking-wide text-gray-500">
+                    Account Type
+                  </h3>
+
+                  {user.cadetId ? (
+                    <div className="mt-3">
+                      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                        <p className="font-semibold text-black">
+                          Cadet-linked account
+                        </p>
+
+                        <p className="mt-1 text-sm text-gray-600">
+                          This account has a cadet profile and can hold issued inventory.
+                        </p>
+                      </div>
+
+                      <div className="mt-3">
+                        <ConvertToCadreControl
+                          profileId={
+                            user.profileId
+                          }
+                          displayName={
+                            [
+                              user.firstName,
+                              user.lastName,
+                            ]
+                              .filter(
+                                Boolean
+                              )
+                              .join(
+                                " "
+                              ) ||
+                            user.email
+                          }
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <p className="font-semibold text-black">
+                        {hasRole(
+                          user,
+                          "cadre"
+                        )
+                          ? "Cadre / staff-only account"
+                          : "Staff-only account"}
+                      </p>
+
+                      <p className="mt-1 text-sm text-gray-600">
+                        This account is not linked to a cadet profile and cannot hold cadet inventory.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 border-t border-gray-200 pt-5">
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-gray-500">
                     Staff Roles
                   </h3>
 
@@ -244,6 +308,12 @@ export default function AdminUsers({
                       }
                     />
                   </div>
+
+                  {user.cadetId && (
+                    <p className="mt-3 text-xs text-gray-500">
+                      Adding the Cadre role here does not remove the cadet profile. Use Convert to Cadre above for a true cadre-only account.
+                    </p>
+                  )}
                 </div>
 
                 {user.cadetId && (
@@ -317,8 +387,7 @@ export default function AdminUsers({
         {filteredUsers.length ===
           0 && (
           <div className="rounded-xl bg-white p-8 text-center text-gray-500 shadow">
-            No users match
-            your search.
+            No users match your search.
           </div>
         )}
       </div>
@@ -326,14 +395,121 @@ export default function AdminUsers({
   );
 }
 
+type ConvertToCadreControlProps = {
+  profileId: string;
+  displayName: string;
+};
+
+function ConvertToCadreControl({
+  profileId,
+  displayName,
+}: ConvertToCadreControlProps) {
+  const router =
+    useRouter();
+
+  const [
+    isPending,
+    startTransition,
+  ] = useTransition();
+
+  const [
+    result,
+    setResult,
+  ] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
+  function handleConvert() {
+    const confirmed =
+      window.confirm(
+        `Convert ${displayName} to a cadre-only account?\n\nThis will remove their cadet profile and cadet role and ensure they have the cadre role.\n\nThe conversion will be blocked if they have inventory or inventory audit history.`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setResult(null);
+
+    const formData =
+      new FormData();
+
+    formData.set(
+      "profile_id",
+      profileId
+    );
+
+    startTransition(
+      async () => {
+        const response =
+          await convertProfileToCadre(
+            formData
+          );
+
+        setResult(
+          response
+        );
+
+        if (
+          response.success
+        ) {
+          router.refresh();
+        }
+      }
+    );
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={
+          handleConvert
+        }
+        disabled={
+          isPending
+        }
+        className="rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+      >
+        {isPending
+          ? "Converting..."
+          : "Convert to Cadre"}
+      </button>
+
+      <p className="mt-2 text-xs text-gray-500">
+        Use this only when the person is actually cadre and should not have a cadet inventory profile.
+      </p>
+
+      {result && (
+        <div
+          className={`mt-3 rounded-lg p-3 text-sm ${
+            result.success
+              ? "bg-green-50 text-green-800"
+              : "bg-red-50 text-red-700"
+          }`}
+        >
+          {
+            result.message
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
 type RoleToggleProps = {
   profileId: string;
+
   roleName:
     | "inventory_assistant"
     | "inventory_admin"
     | "cadre";
+
   label: string;
+
   enabled: boolean;
+
   disabled?: boolean;
 };
 
