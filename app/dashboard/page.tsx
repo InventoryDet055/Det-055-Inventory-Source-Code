@@ -4,8 +4,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import StaffHeader from "@/components/staff-header";
 
+const PAGE_SIZE = 1000;
+
 async function DashboardContent() {
-    const supabase = await createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
@@ -27,41 +29,57 @@ async function DashboardContent() {
   /*
    * Determine all roles belonging to this account.
    */
-  const { data: profileRoles, error: profileRolesError } =
-    await supabase
-      .from("profile_roles")
-      .select("role_id")
-      .eq("profile_id", user.id);
+  const {
+    data: profileRoles,
+    error: profileRolesError,
+  } = await supabase
+    .from("profile_roles")
+    .select("role_id")
+    .eq("profile_id", user.id);
 
   if (profileRolesError) {
-    throw new Error(profileRolesError.message);
+    throw new Error(
+      profileRolesError.message
+    );
   }
 
   const roleIds =
-    profileRoles?.map((role) => role.role_id) ?? [];
+    profileRoles?.map(
+      (role) => role.role_id
+    ) ?? [];
 
   let roleNames: string[] = [];
 
   if (roleIds.length > 0) {
-    const { data: roles, error: rolesError } =
-      await supabase
-        .from("roles")
-        .select("name")
-        .in("id", roleIds);
+    const {
+      data: roles,
+      error: rolesError,
+    } = await supabase
+      .from("roles")
+      .select("name")
+      .in("id", roleIds);
 
     if (rolesError) {
-      throw new Error(rolesError.message);
+      throw new Error(
+        rolesError.message
+      );
     }
 
     roleNames =
-      roles?.map((role) => role.name) ?? [];
+      roles?.map(
+        (role) => role.name
+      ) ?? [];
   }
 
   const isAdmin =
-    roleNames.includes("inventory_admin");
+    roleNames.includes(
+      "inventory_admin"
+    );
 
   const isAssistant =
-    roleNames.includes("inventory_assistant");
+    roleNames.includes(
+      "inventory_assistant"
+    );
 
   const isCadre =
     roleNames.includes("cadre");
@@ -70,9 +88,14 @@ async function DashboardContent() {
     roleNames.includes("cadet");
 
   /*
-   * Only staff/cadre accounts can use the dashboard.
+   * Only staff/cadre accounts can use
+   * the dashboard.
    */
-  if (!isAdmin && !isAssistant && !isCadre) {
+  if (
+    !isAdmin &&
+    !isAssistant &&
+    !isCadre
+  ) {
     if (isCadet) {
       redirect("/my-inventory");
     }
@@ -83,65 +106,148 @@ async function DashboardContent() {
   /*
    * Load cadets for dashboard statistics.
    */
-  const { data: cadets, error: cadetsError } =
-    await supabase
-      .from("cadets")
-      .select(
-        `
-        id,
-        status,
-        inventory_setup_completed_at
-        `
-      );
+  const {
+    data: cadets,
+    error: cadetsError,
+  } = await supabase
+    .from("cadets")
+    .select(`
+      id,
+      status,
+      inventory_setup_completed_at
+    `);
 
   if (cadetsError) {
-    throw new Error(cadetsError.message);
+    throw new Error(
+      cadetsError.message
+    );
   }
 
   /*
-   * Load issued inventory quantities.
+   * Load the full inventory summary.
+   *
+   * This is paginated because the
+   * catalog contains more than 1,000
+   * possible variants.
    */
-  const { data: inventory, error: inventoryError } =
-    await supabase
-      .from("cadet_inventory")
-      .select("quantity");
+  const inventorySummary: {
+    room_quantity: number;
+    issued_quantity: number;
+    total_accounted_quantity: number;
+  }[] = [];
 
-  if (inventoryError) {
-    throw new Error(inventoryError.message);
+  let from = 0;
+
+  while (true) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from(
+        "inventory_variant_summary"
+      )
+      .select(`
+        room_quantity,
+        issued_quantity,
+        total_accounted_quantity
+      `)
+      .range(
+        from,
+        from + PAGE_SIZE - 1
+      );
+
+    if (error) {
+      throw new Error(
+        error.message
+      );
+    }
+
+    const batch =
+      data ?? [];
+
+    inventorySummary.push(
+      ...batch
+    );
+
+    if (
+      batch.length <
+      PAGE_SIZE
+    ) {
+      break;
+    }
+
+    from += PAGE_SIZE;
   }
 
   const activeCadets =
     cadets?.filter(
-      (cadet) => cadet.status === "active"
+      (cadet) =>
+        cadet.status ===
+        "active"
     ) ?? [];
 
   const setupComplete =
     activeCadets.filter(
       (cadet) =>
-        cadet.inventory_setup_completed_at !== null
+        cadet.inventory_setup_completed_at !==
+        null
     ).length;
 
   const setupRemaining =
-    activeCadets.length - setupComplete;
+    activeCadets.length -
+    setupComplete;
+
+  /*
+   * Full accountability numbers.
+   */
+  const roomItems =
+    inventorySummary.reduce(
+      (total, row) =>
+        total +
+        Number(
+          row.room_quantity ??
+            0
+        ),
+      0
+    );
 
   const totalIssuedItems =
-    inventory?.reduce(
-      (total, record) =>
-        total + Number(record.quantity ?? 0),
+    inventorySummary.reduce(
+      (total, row) =>
+        total +
+        Number(
+          row.issued_quantity ??
+            0
+        ),
       0
-    ) ?? 0;
+    );
+
+  const totalAccountedItems =
+    inventorySummary.reduce(
+      (total, row) =>
+        total +
+        Number(
+          row.total_accounted_quantity ??
+            0
+        ),
+      0
+    );
 
   const accountName =
-    profile?.first_name || profile?.last_name
+    profile?.first_name ||
+    profile?.last_name
       ? `${profile?.first_name ?? ""} ${
           profile?.last_name ?? ""
         }`.trim()
-      : profile?.email ?? "Inventory Staff";
+      : profile?.email ??
+        "Inventory Staff";
 
   return (
     <div className="min-h-screen bg-blue-400">
       <StaffHeader
-        showMyInventory={isCadet}
+        showMyInventory={
+          isCadet
+        }
       />
 
       <main className="p-4 sm:p-8">
@@ -157,51 +263,52 @@ async function DashboardContent() {
             </h1>
 
             <p className="mt-2 text-sm text-gray-600">
-              Signed in as {accountName}
+              Signed in as{" "}
+              {accountName}
             </p>
           </div>
 
           {/* Statistics */}
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl bg-white p-6 shadow">
-              <p className="text-sm font-semibold text-gray-500">
-                Active Cadets
-              </p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              label="Active Cadets"
+              value={
+                activeCadets.length
+              }
+            />
 
-              <p className="mt-2 text-3xl font-bold text-black">
-                {activeCadets.length}
-              </p>
-            </div>
+            <StatCard
+              label="Setup Complete"
+              value={
+                setupComplete
+              }
+            />
 
-            <div className="rounded-xl bg-white p-6 shadow">
-              <p className="text-sm font-semibold text-gray-500">
-                Setup Complete
-              </p>
+            <StatCard
+              label="Setup Remaining"
+              value={
+                setupRemaining
+              }
+            />
 
-              <p className="mt-2 text-3xl font-bold text-black">
-                {setupComplete}
-              </p>
-            </div>
+            <StatCard
+              label="In Inventory Room"
+              value={roomItems}
+            />
 
-            <div className="rounded-xl bg-white p-6 shadow">
-              <p className="text-sm font-semibold text-gray-500">
-                Setup Remaining
-              </p>
+            <StatCard
+              label="Issued to Cadets"
+              value={
+                totalIssuedItems
+              }
+            />
 
-              <p className="mt-2 text-3xl font-bold text-black">
-                {setupRemaining}
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-white p-6 shadow">
-              <p className="text-sm font-semibold text-gray-500">
-                Items Issued
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-black">
-                {totalIssuedItems}
-              </p>
-            </div>
+            <StatCard
+              label="Total Accounted"
+              value={
+                totalAccountedItems
+              }
+            />
           </div>
 
           {/* Quick Actions */}
@@ -211,10 +318,13 @@ async function DashboardContent() {
             </h2>
 
             <p className="mt-2 text-sm text-gray-600">
-              Manage cadet inventory records and prepare data for WINGS.
+              Manage physical
+              inventory, cadet
+              holdings, activity,
+              and WINGS records.
             </p>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <a
                 href="/cadets"
                 className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
@@ -224,77 +334,128 @@ async function DashboardContent() {
                 </p>
 
                 <p className="mt-1 text-sm text-gray-600">
-                  Search cadets and manage their issued inventory.
+                  Search cadets
+                  and manage their
+                  issued inventory.
                 </p>
               </a>
 
               <a
-  href="/wings"
-  className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
->
-  <p className="font-semibold text-blue-500">
-    WINGS
-  </p>
-
-  <p className="mt-1 text-sm text-gray-600">
-    Review and export WINGS-ready inventory data.
-  </p>
-</a>
-
-              <a
-  href="/activity"
-  className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
->
-  <p className="font-semibold text-blue-500">
-    Activity
-  </p>
-
-  <p className="mt-1 text-sm text-gray-600">
-    Review inventory changes across Det 055.
-  </p>
-</a>
-
-              {isAdmin ? (
-              <a
-                href="/admin"
+                href="/inventory-room"
                 className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
               >
                 <p className="font-semibold text-blue-500">
-                  Admin
+                  Inventory Room
                 </p>
 
                 <p className="mt-1 text-sm text-gray-600">
-                  Manage users, roles, and cadet status.
+                  Count physical
+                  stock and see
+                  total inventory
+                  accountability.
                 </p>
               </a>
-            ) : (
-              <div className="rounded-xl border border-gray-200 p-5 opacity-60">
-                <p className="font-semibold text-black">
-                  Admin
+
+              <a
+                href="/wings"
+                className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
+              >
+                <p className="font-semibold text-blue-500">
+                  WINGS
                 </p>
 
                 <p className="mt-1 text-sm text-gray-600">
-                  Inventory Admin access required.
+                  Review and
+                  export
+                  WINGS-ready
+                  inventory data.
                 </p>
-              </div>
-            )}
+              </a>
 
+              <a
+                href="/activity"
+                className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
+              >
+                <p className="font-semibold text-blue-500">
+                  Activity
+                </p>
+
+                <p className="mt-1 text-sm text-gray-600">
+                  Review inventory
+                  changes across
+                  Det 055.
+                </p>
+              </a>
+
+              {isAdmin ? (
+                <a
+                  href="/admin"
+                  className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
+                >
+                  <p className="font-semibold text-blue-500">
+                    Admin
+                  </p>
+
+                  <p className="mt-1 text-sm text-gray-600">
+                    Manage users,
+                    roles, cadet
+                    status, and
+                    system
+                    settings.
+                  </p>
+                </a>
+              ) : (
+                <div className="rounded-xl border border-gray-200 p-5 opacity-60">
+                  <p className="font-semibold text-black">
+                    Admin
+                  </p>
+
+                  <p className="mt-1 text-sm text-gray-600">
+                    Inventory
+                    Admin access
+                    required.
+                  </p>
+                </div>
+              )}
+
+              {isCadet && (
+                <a
+                  href="/my-inventory"
+                  className="rounded-xl border border-gray-200 p-5 transition hover:bg-gray-50"
+                >
+                  <p className="font-semibold text-blue-500">
+                    My Inventory
+                  </p>
+
+                  <p className="mt-1 text-sm text-gray-600">
+                    Review your
+                    own issued
+                    inventory.
+                  </p>
+                </a>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Setup Status */}
-        {setupRemaining > 0 && (
+          {/* Setup Status */}
+          {setupRemaining >
+            0 && (
             <div className="mt-6 rounded-xl bg-white p-6 shadow">
               <h2 className="text-lg font-bold text-black">
-                Inventory Setup Progress
+                Inventory Setup
+                Progress
               </h2>
 
               <p className="mt-2 text-sm text-gray-600">
-                {setupRemaining} active{" "}
-                {setupRemaining === 1
+                {setupRemaining}{" "}
+                active{" "}
+                {setupRemaining ===
+                1
                   ? "cadet has"
                   : "cadets have"}{" "}
-                not completed initial inventory setup.
+                not completed
+                initial inventory
+                setup.
               </p>
 
               <div className="mt-4 h-3 overflow-hidden rounded-full bg-gray-200">
@@ -302,7 +463,8 @@ async function DashboardContent() {
                   className="h-full bg-black"
                   style={{
                     width:
-                      activeCadets.length === 0
+                      activeCadets.length ===
+                      0
                         ? "0%"
                         : `${
                             (setupComplete /
@@ -315,7 +477,10 @@ async function DashboardContent() {
 
               <p className="mt-2 text-xs text-gray-500">
                 {setupComplete} of{" "}
-                {activeCadets.length} complete
+                {
+                  activeCadets.length
+                }{" "}
+                complete
               </p>
             </div>
           )}
@@ -324,6 +489,27 @@ async function DashboardContent() {
     </div>
   );
 }
+
+function StatCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-xl bg-white p-6 shadow">
+      <p className="text-sm font-semibold text-gray-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-3xl font-bold text-black">
+        {value.toLocaleString()}
+      </p>
+    </div>
+  );
+}
+
 function DashboardLoading() {
   return (
     <div className="min-h-screen bg-blue-400">
@@ -331,7 +517,8 @@ function DashboardLoading() {
         <div className="mx-auto max-w-6xl">
           <div className="rounded-xl bg-white p-6 shadow sm:p-8">
             <p className="text-sm text-gray-600">
-              Loading dashboard...
+              Loading
+              dashboard...
             </p>
           </div>
         </div>
@@ -342,7 +529,11 @@ function DashboardLoading() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<DashboardLoading />}>
+    <Suspense
+      fallback={
+        <DashboardLoading />
+      }
+    >
       <DashboardContent />
     </Suspense>
   );

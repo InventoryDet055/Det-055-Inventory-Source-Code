@@ -35,6 +35,13 @@ export default function StaffHeader({
             </Link>
 
             <Link
+              href="/inventory-room"
+              className="text-sm font-semibold text-gray-600 transition hover:text-blue-500"
+            >
+              Inventory Room
+            </Link>
+
+            <Link
               href="/wings"
               className="text-sm font-semibold text-gray-600 transition hover:text-blue-500"
             >
@@ -69,31 +76,38 @@ export default function StaffHeader({
         </form>
       </div>
 
-      <nav className="flex border-t border-gray-200 sm:hidden">
+      <nav className="flex overflow-x-auto border-t border-gray-200 sm:hidden">
         <Link
           href="/dashboard"
-          className="flex-1 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
+          className="min-w-[100px] flex-none py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
         >
           Dashboard
         </Link>
 
         <Link
           href="/cadets"
-          className="flex-1 border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
+          className="min-w-[100px] flex-none border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
         >
           Cadets
         </Link>
 
         <Link
+          href="/inventory-room"
+          className="min-w-[130px] flex-none border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
+        >
+          Inventory Room
+        </Link>
+
+        <Link
           href="/wings"
-          className="flex-1 border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
+          className="min-w-[100px] flex-none border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
         >
           WINGS
         </Link>
 
         <Link
           href="/activity"
-          className="flex-1 border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
+          className="min-w-[100px] flex-none border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
         >
           Activity
         </Link>
@@ -101,7 +115,7 @@ export default function StaffHeader({
         {showMyInventory && (
           <Link
             href="/my-inventory"
-            className="flex-1 border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
+            className="min-w-[120px] flex-none border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
           >
             My Inventory
           </Link>
