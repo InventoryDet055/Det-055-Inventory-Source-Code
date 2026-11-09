@@ -34,6 +34,12 @@ type ItemDetails = {
 
 type InventoryMode = "setup" | "add";
 
+type RoomInventoryRecord = {
+  catalog_variant_id: string;
+  quantity_on_hand: number;
+  last_counted_at: string | null;
+};
+
 type Props = {
   items: AppItem[];
   variants: CatalogVariant[];
@@ -41,6 +47,8 @@ type Props = {
 
   staffCadetId?: string;
   staffCadetName?: string;
+
+  roomInventory?: RoomInventoryRecord[];
 };
 
 const categories = [
@@ -56,6 +64,7 @@ export default function InventorySetupForm({
   mode,
   staffCadetId,
   staffCadetName,
+  roomInventory = [],
 }: Props) {
   const [step, setStep] = useState(1);
 
@@ -73,6 +82,20 @@ export default function InventorySetupForm({
 
   const isStaffMode =
     Boolean(staffCadetId);
+
+  const roomStockByVariant =
+    useMemo(
+      () =>
+        new Map(
+          roomInventory.map(
+            (record) => [
+              record.catalog_variant_id,
+              record,
+            ]
+          )
+        ),
+      [roomInventory]
+    );
 
   const formAction =
     isStaffMode
@@ -616,18 +639,20 @@ export default function InventorySetupForm({
         </p>
 
         <h1 className="mt-1 text-3xl font-bold text-black">
-          {isAddMode
-            ? "Add Items"
-            : "Set Up My Inventory"}
+          {isStaffMode
+            ? "Issue Inventory"
+            : isAddMode
+              ? "Add Items"
+              : "Set Up My Inventory"}
         </h1>
 
         {isAddMode && (
           <p className="mt-2 text-sm text-gray-600">
             {isStaffMode
-              ? `Add issued items to ${
+              ? `Issue items from the Inventory Room to ${
                   staffCadetName ??
                   "this cadet"
-                }. Nothing already on their profile will be removed.`
+                }. Room stock will decrease automatically.`
               : "Add additional issued items to your existing inventory. Nothing already on your profile will be removed."}
           </p>
         )}
@@ -927,20 +952,74 @@ export default function InventorySetupForm({
                                     {availableVariants.map(
                                       (
                                         variant
-                                      ) => (
-                                        <option
-                                          key={
+                                      ) => {
+                                        const stock =
+                                          roomStockByVariant.get(
                                             variant.id
+                                          );
+
+                                        const counted =
+                                          Boolean(
+                                            stock?.last_counted_at
+                                          );
+
+                                        const available =
+                                          Number(
+                                            stock?.quantity_on_hand ??
+                                              0
+                                          );
+
+                                        const unavailable =
+                                          isStaffMode &&
+                                          (
+                                            !counted ||
+                                            available <= 0
+                                          );
+
+                                        let stockLabel =
+                                          "";
+
+                                        if (
+                                          isStaffMode
+                                        ) {
+                                          if (
+                                            !counted
+                                          ) {
+                                            stockLabel =
+                                              " — not counted";
+                                          } else if (
+                                            available ===
+                                            0
+                                          ) {
+                                            stockLabel =
+                                              " — out of stock";
+                                          } else {
+                                            stockLabel =
+                                              ` — ${available} available`;
                                           }
-                                          value={
-                                            variant.id
-                                          }
-                                        >
-                                          {
-                                            variant.size_display
-                                          }
-                                        </option>
-                                      )
+                                        }
+
+                                        return (
+                                          <option
+                                            key={
+                                              variant.id
+                                            }
+                                            value={
+                                              variant.id
+                                            }
+                                            disabled={
+                                              unavailable
+                                            }
+                                          >
+                                            {
+                                              variant.size_display
+                                            }
+                                            {
+                                              stockLabel
+                                            }
+                                          </option>
+                                        );
+                                      }
                                     )}
                                   </select>
                                 </div>
@@ -954,6 +1033,17 @@ export default function InventorySetupForm({
                                     type="number"
                                     min={
                                       1
+                                    }
+                                    max={
+                                      isStaffMode &&
+                                      row.variantId
+                                        ? Number(
+                                            roomStockByVariant.get(
+                                              row.variantId
+                                            )?.quantity_on_hand ??
+                                              0
+                                          )
+                                        : undefined
                                     }
                                     step={
                                       1
@@ -976,6 +1066,19 @@ export default function InventorySetupForm({
                                     }
                                     className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-black"
                                   />
+
+                                  {isStaffMode &&
+                                    row.variantId && (
+                                    <p className="mt-1 text-xs text-gray-500">
+                                      {Number(
+                                        roomStockByVariant.get(
+                                          row.variantId
+                                        )?.quantity_on_hand ??
+                                          0
+                                      )}{" "}
+                                      available in room
+                                    </p>
+                                  )}
                                 </div>
                               </div>
 
@@ -1059,10 +1162,10 @@ export default function InventorySetupForm({
           <p className="mt-2 text-sm text-gray-600">
             {isAddMode
               ? isStaffMode
-                ? `Confirm the items below. These quantities will be added to ${
+                ? `Confirm the items below. These quantities will be issued from the Inventory Room to ${
                     staffCadetName ??
                     "this cadet"
-                  }'s existing inventory.`
+                  }.`
                 : "Confirm the items below. These quantities will be added to your existing inventory."
               : "Confirm that everything below accurately reflects what is currently issued to you."}
           </p>
@@ -1213,7 +1316,9 @@ export default function InventorySetupForm({
                 type="submit"
                 className="rounded-lg bg-black px-6 py-3 font-semibold text-white hover:bg-gray-800"
               >
-                Add to Inventory
+                {isStaffMode
+                  ? "Issue Inventory"
+                  : "Add to Inventory"}
               </button>
             </div>
           </form>

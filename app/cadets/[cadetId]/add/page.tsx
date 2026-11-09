@@ -191,6 +191,28 @@ async function AddCadetItemsContent({
     );
   }
 
+  /*
+   * Staff issuance must use actual
+   * Inventory Room availability.
+   */
+  const {
+    data: roomInventory,
+    error: roomInventoryError,
+  } = await supabase
+    .from("room_inventory")
+    .select(`
+      catalog_variant_id,
+      quantity_on_hand,
+      last_counted_at
+    `)
+    .range(0, 1999);
+
+  if (roomInventoryError) {
+    throw new Error(
+      roomInventoryError.message
+    );
+  }
+
   const fullName =
     `${profile.first_name ?? ""} ${
       profile.last_name ?? ""
@@ -226,6 +248,9 @@ async function AddCadetItemsContent({
               }
               staffCadetName={
                 fullName
+              }
+              roomInventory={
+                roomInventory ?? []
               }
             />
           </div>
