@@ -425,7 +425,7 @@ enabled = true
 project_id = "zrxikutehlrwpttlaejo"
 
 [remotes.production.auth]
-site_url = "https://det055-inventory.vercel.app"
+site_url = "https://det055-inventory.vercel.app/"
 additional_redirect_urls = [
   "http://localhost:3000",
   "http://localhost:3000/**",
