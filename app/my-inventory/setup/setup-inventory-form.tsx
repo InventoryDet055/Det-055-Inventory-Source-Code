@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 
-import { completeInventorySetup } from "./actions";
 import { addCadetInventoryItems } from "@/app/cadets/[cadetId]/add/actions";
+import { completeInventorySetup } from "./actions";
 
 type AppItem = {
   id: string;
@@ -22,6 +22,12 @@ type CatalogVariant = {
   sort_order: number;
 };
 
+type RoomInventoryRecord = {
+  catalog_variant_id: string;
+  quantity_on_hand: number;
+  last_counted_at: string | null;
+};
+
 type InventoryRow = {
   variantId: string;
   quantity: number;
@@ -32,22 +38,16 @@ type ItemDetails = {
   rows: InventoryRow[];
 };
 
-type InventoryMode = "setup" | "add";
-
-type RoomInventoryRecord = {
-  catalog_variant_id: string;
-  quantity_on_hand: number;
-  last_counted_at: string | null;
-};
+type InventoryMode =
+  | "setup"
+  | "add";
 
 type Props = {
   items: AppItem[];
   variants: CatalogVariant[];
   mode: InventoryMode;
-
   staffCadetId?: string;
   staffCadetName?: string;
-
   roomInventory?: RoomInventoryRecord[];
 };
 
@@ -66,16 +66,21 @@ export default function InventorySetupForm({
   staffCadetName,
   roomInventory = [],
 }: Props) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] =
+    useState(1);
 
   const [
     selectedItems,
     setSelectedItems,
   ] = useState<string[]>([]);
 
-  const [details, setDetails] = useState<
-    Record<string, ItemDetails>
-  >({});
+  const [details, setDetails] =
+    useState<
+      Record<
+        string,
+        ItemDetails
+      >
+    >({});
 
   const isAddMode =
     mode === "add";
@@ -83,6 +88,18 @@ export default function InventorySetupForm({
   const isStaffMode =
     Boolean(staffCadetId);
 
+  const formAction =
+    isStaffMode
+      ? addCadetInventoryItems
+      : completeInventorySetup;
+
+  /*
+   * Fast lookup for room stock.
+   *
+   * This is informational only.
+   * Zero or uncounted stock does NOT
+   * prevent staff from issuing an item.
+   */
   const roomStockByVariant =
     useMemo(
       () =>
@@ -97,40 +114,41 @@ export default function InventorySetupForm({
       [roomInventory]
     );
 
-  const formAction =
-    isStaffMode
-      ? addCadetInventoryItems
-      : completeInventorySetup;
+  const selectedCatalogItems =
+    useMemo(
+      () =>
+        items
+          .filter((item) =>
+            selectedItems.includes(
+              item.id
+            )
+          )
+          .sort((a, b) => {
+            const categoryDifference =
+              categories.indexOf(
+                a.uniform_category
+              ) -
+              categories.indexOf(
+                b.uniform_category
+              );
 
-  const selectedCatalogItems = useMemo(
-    () =>
-      items
-        .filter((item) =>
-          selectedItems.includes(item.id)
-        )
-        .sort((a, b) => {
-          const categoryDifference =
-            categories.indexOf(
-              a.uniform_category
-            ) -
-            categories.indexOf(
-              b.uniform_category
+            if (
+              categoryDifference !==
+              0
+            ) {
+              return categoryDifference;
+            }
+
+            return (
+              a.sort_order -
+              b.sort_order
             );
-
-          if (categoryDifference !== 0) {
-            return categoryDifference;
-          }
-
-          return (
-            a.sort_order -
-            b.sort_order
-          );
-        }),
-    [
-      items,
-      selectedItems,
-    ]
-  );
+          }),
+      [
+        items,
+        selectedItems,
+      ]
+    );
 
   function toggleItem(
     item: AppItem
@@ -155,7 +173,9 @@ export default function InventorySetupForm({
             ...current,
           };
 
-          delete copy[item.id];
+          delete copy[
+            item.id
+          ];
 
           return copy;
         }
@@ -184,8 +204,7 @@ export default function InventorySetupForm({
       item.cut_rule ===
       "female_only"
     ) {
-      impliedCut =
-        "Female";
+      impliedCut = "Female";
     }
 
     setDetails(
@@ -248,7 +267,9 @@ export default function InventorySetupForm({
             const item of
               categoryItems
           ) {
-            if (!copy[item.id]) {
+            if (
+              !copy[item.id]
+            ) {
               let impliedCut =
                 "";
 
@@ -268,7 +289,9 @@ export default function InventorySetupForm({
                   "Female";
               }
 
-              copy[item.id] = {
+              copy[
+                item.id
+              ] = {
                 cut: impliedCut,
 
                 rows: [
@@ -286,42 +309,44 @@ export default function InventorySetupForm({
           return copy;
         }
       );
-    } else {
-      const categoryIds =
-        new Set(
-          categoryItems.map(
-            (item) =>
-              item.id
-          )
-        );
 
-      setSelectedItems(
-        (current) =>
-          current.filter(
-            (id) =>
-              !categoryIds.has(
-                id
-              )
-          )
-      );
-
-      setDetails(
-        (current) => {
-          const copy = {
-            ...current,
-          };
-
-          for (
-            const id of
-              categoryIds
-          ) {
-            delete copy[id];
-          }
-
-          return copy;
-        }
-      );
+      return;
     }
+
+    const categoryIds =
+      new Set(
+        categoryItems.map(
+          (item) =>
+            item.id
+        )
+      );
+
+    setSelectedItems(
+      (current) =>
+        current.filter(
+          (id) =>
+            !categoryIds.has(
+              id
+            )
+        )
+    );
+
+    setDetails(
+      (current) => {
+        const copy = {
+          ...current,
+        };
+
+        for (
+          const id of
+            categoryIds
+        ) {
+          delete copy[id];
+        }
+
+        return copy;
+      }
+    );
   }
 
   function updateCut(
@@ -351,7 +376,8 @@ export default function InventorySetupForm({
     rowIndex: number,
     field:
       keyof InventoryRow,
-    value: string | number
+    value:
+      string | number
   ) {
     setDetails(
       (current) => {
@@ -404,7 +430,8 @@ export default function InventorySetupForm({
             ].rows,
 
             {
-              variantId: "",
+              variantId:
+                "",
               quantity: 1,
             },
           ],
@@ -453,8 +480,8 @@ export default function InventorySetupForm({
     }
 
     let expectedCut:
-      | string
-      | null = null;
+      string | null =
+      null;
 
     if (
       item.cut_rule ===
@@ -519,13 +546,20 @@ export default function InventorySetupForm({
       );
   }
 
+  /*
+   * This only validates that the
+   * form itself is complete.
+   *
+   * Room stock is intentionally NOT
+   * part of validation.
+   */
   const setupComplete =
     useMemo(() => {
       if (
         selectedCatalogItems.length ===
         0
       ) {
-        return !isAddMode;
+        return true;
       }
 
       return selectedCatalogItems.every(
@@ -550,9 +584,9 @@ export default function InventorySetupForm({
           }
 
           return (
-            itemDetails
-              .rows
-              .length > 0 &&
+            itemDetails.rows
+              .length >
+              0 &&
             itemDetails.rows.every(
               (row) =>
                 Boolean(
@@ -570,7 +604,6 @@ export default function InventorySetupForm({
     }, [
       selectedCatalogItems,
       details,
-      isAddMode,
     ]);
 
   const submittedInventory =
@@ -649,10 +682,10 @@ export default function InventorySetupForm({
         {isAddMode && (
           <p className="mt-2 text-sm text-gray-600">
             {isStaffMode
-              ? `Issue items from the Inventory Room to ${
+              ? `Issue items to ${
                   staffCadetName ??
                   "this cadet"
-                }. Room stock will decrease automatically.`
+                }. Recorded room stock will decrease when available, but zero or uncounted stock will not prevent issuance.`
               : "Add additional issued items to your existing inventory. Nothing already on your profile will be removed."}
           </p>
         )}
@@ -665,9 +698,9 @@ export default function InventorySetupForm({
                 step === 1
                   ? "33%"
                   : step ===
-                    2
-                  ? "66%"
-                  : "100%",
+                      2
+                    ? "66%"
+                    : "100%",
             }}
           />
         </div>
@@ -676,18 +709,20 @@ export default function InventorySetupForm({
       {step === 1 && (
         <div className="mt-8">
           <h2 className="text-xl font-bold text-black">
-            {isAddMode
-              ? "What items are you adding?"
-              : "What items do you currently have?"}
+            {isStaffMode
+              ? "What items are you issuing?"
+              : isAddMode
+                ? "What items are you adding?"
+                : "What items do you currently have?"}
           </h2>
 
           <p className="mt-2 text-sm text-gray-600">
             {isAddMode
               ? isStaffMode
-                ? `Select every item you want to add to ${
+                ? `Select every item you want to issue to ${
                     staffCadetName ??
                     "this cadet"
-                  }'s inventory.`
+                  }.`
                 : "Select every additional uniform item you want to add to your inventory."
               : "Select every uniform item currently issued to you. Leave items you do not have unchecked."}
           </p>
@@ -820,9 +855,11 @@ export default function InventorySetupForm({
           </h2>
 
           <p className="mt-2 text-sm text-gray-600">
-            {isAddMode
-              ? "Enter the size and quantity being added for each selected item."
-              : "Enter the size and quantity for each item you selected."}
+            {isStaffMode
+              ? "Enter the size and quantity being issued. Room availability is shown for reference only."
+              : isAddMode
+                ? "Enter the size and quantity being added for each selected item."
+                : "Enter the size and quantity for each item you selected."}
           </p>
 
           {selectedCatalogItems.length ===
@@ -910,197 +947,192 @@ export default function InventorySetupForm({
                           (
                             row,
                             rowIndex
-                          ) => (
-                            <div
-                              key={
-                                rowIndex
-                              }
-                              className="rounded-lg bg-gray-50 p-3"
-                            >
-                              <div className="grid gap-3 sm:grid-cols-[1fr_100px]">
-                                <div>
-                                  <label className="mb-1 block text-xs font-semibold text-gray-600">
-                                    Size
-                                  </label>
+                          ) => {
+                            const selectedStock =
+                              row.variantId
+                                ? roomStockByVariant.get(
+                                    row.variantId
+                                  )
+                                : undefined;
 
-                                  <select
-                                    value={
-                                      row.variantId
-                                    }
-                                    onChange={(
-                                      e
-                                    ) =>
-                                      updateRow(
-                                        item.id,
-                                        rowIndex,
-                                        "variantId",
-                                        e.target
-                                          .value
-                                      )
-                                    }
-                                    disabled={
-                                      item.cut_rule ===
-                                        "required" &&
-                                      !itemDetails.cut
-                                    }
-                                    className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-black disabled:bg-gray-100"
-                                  >
-                                    <option value="">
-                                      Select size...
-                                    </option>
+                            const selectedCounted =
+                              Boolean(
+                                selectedStock?.last_counted_at
+                              );
 
-                                    {availableVariants.map(
-                                      (
-                                        variant
-                                      ) => {
-                                        const stock =
-                                          roomStockByVariant.get(
-                                            variant.id
-                                          );
+                            const selectedAvailable =
+                              Number(
+                                selectedStock?.quantity_on_hand ??
+                                  0
+                              );
 
-                                        const counted =
-                                          Boolean(
-                                            stock?.last_counted_at
-                                          );
+                            return (
+                              <div
+                                key={
+                                  rowIndex
+                                }
+                                className="rounded-lg bg-gray-50 p-3"
+                              >
+                                <div className="grid gap-3 sm:grid-cols-[1fr_100px]">
+                                  <div>
+                                    <label className="mb-1 block text-xs font-semibold text-gray-600">
+                                      Size
+                                    </label>
 
-                                        const available =
-                                          Number(
-                                            stock?.quantity_on_hand ??
-                                              0
-                                          );
-
-                                        const unavailable =
-                                          isStaffMode &&
-                                          (
-                                            !counted ||
-                                            available <= 0
-                                          );
-
-                                        let stockLabel =
-                                          "";
-
-                                        if (
-                                          isStaffMode
-                                        ) {
-                                          if (
-                                            !counted
-                                          ) {
-                                            stockLabel =
-                                              " — not counted";
-                                          } else if (
-                                            available ===
-                                            0
-                                          ) {
-                                            stockLabel =
-                                              " — out of stock";
-                                          } else {
-                                            stockLabel =
-                                              ` — ${available} available`;
-                                          }
-                                        }
-
-                                        return (
-                                          <option
-                                            key={
-                                              variant.id
-                                            }
-                                            value={
-                                              variant.id
-                                            }
-                                            disabled={
-                                              unavailable
-                                            }
-                                          >
-                                            {
-                                              variant.size_display
-                                            }
-                                            {
-                                              stockLabel
-                                            }
-                                          </option>
-                                        );
+                                    <select
+                                      value={
+                                        row.variantId
                                       }
-                                    )}
-                                  </select>
-                                </div>
-
-                                <div>
-                                  <label className="mb-1 block text-xs font-semibold text-gray-600">
-                                    Quantity
-                                  </label>
-
-                                  <input
-                                    type="number"
-                                    min={
-                                      1
-                                    }
-                                    max={
-                                      isStaffMode &&
-                                      row.variantId
-                                        ? Number(
-                                            roomStockByVariant.get(
-                                              row.variantId
-                                            )?.quantity_on_hand ??
-                                              0
-                                          )
-                                        : undefined
-                                    }
-                                    step={
-                                      1
-                                    }
-                                    value={
-                                      row.quantity
-                                    }
-                                    onChange={(
-                                      e
-                                    ) =>
-                                      updateRow(
-                                        item.id,
-                                        rowIndex,
-                                        "quantity",
-                                        Number(
+                                      onChange={(
+                                        e
+                                      ) =>
+                                        updateRow(
+                                          item.id,
+                                          rowIndex,
+                                          "variantId",
                                           e.target
                                             .value
                                         )
+                                      }
+                                      disabled={
+                                        item.cut_rule ===
+                                          "required" &&
+                                        !itemDetails.cut
+                                      }
+                                      className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-black disabled:bg-gray-100"
+                                    >
+                                      <option value="">
+                                        Select size...
+                                      </option>
+
+                                      {availableVariants.map(
+                                        (
+                                          variant
+                                        ) => {
+                                          const stock =
+                                            roomStockByVariant.get(
+                                              variant.id
+                                            );
+
+                                          const counted =
+                                            Boolean(
+                                              stock?.last_counted_at
+                                            );
+
+                                          const available =
+                                            Number(
+                                              stock?.quantity_on_hand ??
+                                                0
+                                            );
+
+                                          let stockLabel =
+                                            "";
+
+                                          if (
+                                            isStaffMode
+                                          ) {
+                                            if (
+                                              !counted
+                                            ) {
+                                              stockLabel =
+                                                " — not counted";
+                                            } else if (
+                                              available ===
+                                              0
+                                            ) {
+                                              stockLabel =
+                                                " — 0 available";
+                                            } else {
+                                              stockLabel =
+                                                ` — ${available} available`;
+                                            }
+                                          }
+
+                                          return (
+                                            <option
+                                              key={
+                                                variant.id
+                                              }
+                                              value={
+                                                variant.id
+                                              }
+                                            >
+                                              {
+                                                variant.size_display
+                                              }
+                                              {
+                                                stockLabel
+                                              }
+                                            </option>
+                                          );
+                                        }
+                                      )}
+                                    </select>
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-1 block text-xs font-semibold text-gray-600">
+                                      Quantity
+                                    </label>
+
+                                    <input
+                                      type="number"
+                                      min={
+                                        1
+                                      }
+                                      step={
+                                        1
+                                      }
+                                      value={
+                                        row.quantity
+                                      }
+                                      onChange={(
+                                        e
+                                      ) =>
+                                        updateRow(
+                                          item.id,
+                                          rowIndex,
+                                          "quantity",
+                                          Number(
+                                            e.target
+                                              .value
+                                          )
+                                        )
+                                      }
+                                      className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-black"
+                                    />
+
+                                    {isStaffMode &&
+                                      row.variantId && (
+                                        <p className="mt-1 text-xs text-gray-500">
+                                          {selectedCounted
+                                            ? `${selectedAvailable} available in room`
+                                            : "Not yet counted in room"}
+                                        </p>
+                                      )}
+                                  </div>
+                                </div>
+
+                                {itemDetails
+                                  .rows
+                                  .length >
+                                  1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeSizeRow(
+                                        item.id,
+                                        rowIndex
                                       )
                                     }
-                                    className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-black"
-                                  />
-
-                                  {isStaffMode &&
-                                    row.variantId && (
-                                    <p className="mt-1 text-xs text-gray-500">
-                                      {Number(
-                                        roomStockByVariant.get(
-                                          row.variantId
-                                        )?.quantity_on_hand ??
-                                          0
-                                      )}{" "}
-                                      available in room
-                                    </p>
-                                  )}
-                                </div>
+                                    className="mt-2 text-xs font-semibold text-red-600 hover:text-red-800"
+                                  >
+                                    Remove this size
+                                  </button>
+                                )}
                               </div>
-
-                              {itemDetails
-                                .rows
-                                .length >
-                                1 && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    removeSizeRow(
-                                      item.id,
-                                      rowIndex
-                                    )
-                                  }
-                                  className="mt-2 text-xs font-semibold text-red-600 hover:text-red-800"
-                                >
-                                  Remove this size
-                                </button>
-                              )}
-                            </div>
-                          )
+                            );
+                          }
                         )}
                       </div>
 
@@ -1143,9 +1175,11 @@ export default function InventorySetupForm({
               }
               className="rounded-lg bg-black px-6 py-3 font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
-              {isAddMode
-                ? "Review Items"
-                : "Review Inventory"}
+              {isStaffMode
+                ? "Review Issue"
+                : isAddMode
+                  ? "Review Items"
+                  : "Review Inventory"}
             </button>
           </div>
         </div>
@@ -1154,18 +1188,20 @@ export default function InventorySetupForm({
       {step === 3 && (
         <div className="mt-8">
           <h2 className="text-xl font-bold text-black">
-            {isAddMode
-              ? "Review Items to Add"
-              : "Review Your Inventory"}
+            {isStaffMode
+              ? "Review Inventory Issue"
+              : isAddMode
+                ? "Review Items to Add"
+                : "Review Your Inventory"}
           </h2>
 
           <p className="mt-2 text-sm text-gray-600">
             {isAddMode
               ? isStaffMode
-                ? `Confirm the items below. These quantities will be issued from the Inventory Room to ${
+                ? `Confirm the items below. These quantities will be issued to ${
                     staffCadetName ??
                     "this cadet"
-                  }.`
+                  }. Room stock will decrease when recorded stock is available.`
                 : "Confirm the items below. These quantities will be added to your existing inventory."
               : "Confirm that everything below accurately reflects what is currently issued to you."}
           </p>
@@ -1275,7 +1311,9 @@ export default function InventorySetupForm({
           )}
 
           <form
-            action={formAction}
+            action={
+              formAction
+            }
           >
             {staffCadetId && (
               <input
@@ -1290,7 +1328,9 @@ export default function InventorySetupForm({
             <input
               type="hidden"
               name="mode"
-              value={mode}
+              value={
+                mode
+              }
             />
 
             <input
@@ -1318,7 +1358,9 @@ export default function InventorySetupForm({
               >
                 {isStaffMode
                   ? "Issue Inventory"
-                  : "Add to Inventory"}
+                  : isAddMode
+                    ? "Add to Inventory"
+                    : "Save My Inventory"}
               </button>
             </div>
           </form>
