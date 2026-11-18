@@ -1666,3 +1666,97 @@ INSERT INTO "public"."roles" ("id", "name", "display_name", "created_at") VALUES
 -- \unrestrict IztY6x1fgQwFtWptOUJIrQUsnhEJxBaHeZxp6LnX1umEr3Ra0G1qwp2dVuLkL2d
 
 RESET ALL;
+
+/* =========================================================
+   Catalog additions introduced after original seed export
+   ========================================================= */
+
+/* OCP Boots - Female 9W */
+
+insert into public.catalog_variants (
+  id,
+  app_item_id,
+  cut,
+  size_display,
+  size_code,
+  active,
+  sort_order,
+  created_at,
+  updated_at
+)
+select
+  '90743962-aa65-4b1c-b614-a0206050561a'::uuid,
+  ai.id,
+  'Female',
+  '9W',
+  '9W',
+  true,
+  coalesce(
+    (
+      select cv.sort_order
+      from public.catalog_variants cv
+      where cv.app_item_id = ai.id
+        and cv.cut = 'Female'
+        and cv.size_code = '9R'
+      limit 1
+    ),
+    1000
+  ),
+  now(),
+  now()
+from public.app_items ai
+where ai.uniform_category = 'OCP'
+  and ai.display_name = 'OCP Boots'
+  and not exists (
+    select 1
+    from public.catalog_variants cv
+    where cv.app_item_id = ai.id
+      and cv.cut = 'Female'
+      and cv.size_code = '9W'
+  );
+
+
+/* OCP Boots - Male 12W */
+
+insert into public.catalog_variants (
+  id,
+  app_item_id,
+  cut,
+  size_display,
+  size_code,
+  active,
+  sort_order,
+  created_at,
+  updated_at
+)
+select
+  '08767bd4-1744-49ef-a715-4b4108812605'::uuid,
+  ai.id,
+  'Male',
+  '12W',
+  '12W',
+  true,
+  coalesce(
+    (
+      select cv.sort_order
+      from public.catalog_variants cv
+      where cv.app_item_id = ai.id
+        and cv.cut = 'Male'
+        and cv.size_code = '12R'
+      limit 1
+    ),
+    1000
+  ),
+  now(),
+  now()
+from public.app_items ai
+where ai.uniform_category = 'OCP'
+  and ai.display_name = 'OCP Boots'
+  and not exists (
+    select 1
+    from public.catalog_variants cv
+    where cv.app_item_id = ai.id
+      and cv.cut = 'Male'
+      and cv.size_code = '12W'
+  );
+
