@@ -1760,3 +1760,68 @@ where ai.uniform_category = 'OCP'
       and cv.size_code = '12W'
   );
 
+
+/* =========================================================
+   Historical WINGS mappings added after original seed export
+   ========================================================= */
+
+with desired_mappings (
+  uniform_category,
+  item_name,
+  cut,
+  size_code,
+  wings_item_no
+) as (
+  values
+    (
+      'Blues',
+      'Necktie',
+      'Male',
+      'ONE-SIZE',
+      '0000000844'
+    ),
+    (
+      'OCP',
+      'OCP Boots',
+      'Male',
+      '12W',
+      '0000004201'
+    ),
+    (
+      'OCP',
+      'OCP Boots',
+      'Female',
+      '9W',
+      '0000004684'
+    )
+)
+insert into public.catalog_variant_wings (
+  catalog_variant_id,
+  wings_item_no,
+  quantity_multiplier,
+  mapping_role,
+  created_at
+)
+select
+  cv.id,
+  dm.wings_item_no,
+  1,
+  'primary',
+  now()
+from desired_mappings dm
+join public.app_items ai
+  on ai.uniform_category = dm.uniform_category
+ and ai.display_name = dm.item_name
+join public.catalog_variants cv
+  on cv.app_item_id = ai.id
+ and cv.cut = dm.cut
+ and cv.size_code = dm.size_code
+join public.wings_variants wv
+  on wv.wings_item_no = dm.wings_item_no
+where not exists (
+  select 1
+  from public.catalog_variant_wings cvw
+  where cvw.catalog_variant_id = cv.id
+    and cvw.wings_item_no = dm.wings_item_no
+);
+
