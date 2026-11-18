@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import StaffHeader from "@/components/staff-header";
-import { adjustInventoryQuantity } from "./actions";
+import { returnInventoryToRoom } from "./return-actions";
 
 export const instant = false;
 
@@ -277,56 +277,59 @@ export default async function CadetProfilePage({
    * Combine inventory data with friendly
    * item and variant information.
    */
-  const inventory =
-    inventoryRows
-      ?.map((record) => {
-        const variant =
-          variantMap.get(
-            record.catalog_variant_id
-          );
+ const inventory =
+  inventoryRows
+    ?.map((record) => {
+      const variant =
+        variantMap.get(
+          record.catalog_variant_id
+        );
 
-        if (!variant) {
-          return null;
-        }
+      if (!variant) {
+        return null;
+      }
 
-        const item =
-          appItemMap.get(
-            variant.app_item_id
-          );
+      const item =
+        appItemMap.get(
+          variant.app_item_id
+        );
 
-        if (!item) {
-          return null;
-        }
+      if (!item) {
+        return null;
+      }
 
-        return {
-          inventoryId:
-            record.id,
+      return {
+        inventoryId:
+          record.id,
 
-          quantity:
-            record.quantity,
+        catalogVariantId:
+          record.catalog_variant_id,
 
-          updatedAt:
-            record.updated_at,
+        quantity:
+          record.quantity,
 
-          category:
-            item.uniform_category,
+        updatedAt:
+          record.updated_at,
 
-          itemName:
-            item.display_name,
+        category:
+          item.uniform_category,
 
-          itemSort:
-            item.sort_order,
+        itemName:
+          item.display_name,
 
-          variantSort:
-            variant.sort_order,
+        itemSort:
+          item.sort_order,
 
-          cut:
-            variant.cut,
+        variantSort:
+          variant.sort_order,
 
-          size:
-            variant.size_display,
-        };
-      })
+        cut:
+          variant.cut,
+
+        size:
+          variant.size_display,
+      };
+    })
       .filter(
         (
           record
@@ -584,110 +587,62 @@ export default async function CadetProfilePage({
                               </div>
 
                               {canEdit ? (
-                                <div className="flex items-center gap-2">
-                                  {/* Decrease Quantity */}
-                                  <form
-                                    action={
-                                      adjustInventoryQuantity
-                                    }
-                                  >
-                                    <input
-                                      type="hidden"
-                                      name="cadet_id"
-                                      value={
-                                        cadet.id
-                                      }
-                                    />
+  <div className="flex flex-wrap items-center gap-3">
+    {/* Quantity */}
+    <span className="min-w-16 rounded-full bg-blue-400 px-3 py-1 text-center text-sm font-semibold text-white">
+      Qty{" "}
+      {
+        item.quantity
+      }
+    </span>
 
-                                    <input
-                                      type="hidden"
-                                      name="inventory_id"
-                                      value={
-                                        item.inventoryId
-                                      }
-                                    />
+    {/* Physical Return */}
+    <form
+      action={
+        returnInventoryToRoom
+      }
+    >
+      <input
+        type="hidden"
+        name="cadet_id"
+        value={
+          cadet.id
+        }
+      />
 
-                                    <input
-                                      type="hidden"
-                                      name="delta"
-                                      value="-1"
-                                    />
+      <input
+        type="hidden"
+        name="catalog_variant_id"
+        value={
+          item.catalogVariantId
+        }
+      />
 
-                                    <button
-                                      type="submit"
-                                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 font-bold text-black transition hover:bg-gray-100"
-                                      title={
-                                        item.quantity ===
-                                        1
-                                          ? "Remove item"
-                                          : "Decrease quantity"
-                                      }
-                                    >
-                                      −
-                                    </button>
-                                  </form>
+      <button
+        type="submit"
+        className="rounded-lg border border-blue-400 px-3 py-2 text-sm font-semibold text-blue-500 transition hover:bg-blue-50"
+      >
+        Return 1
+      </button>
+    </form>
 
-                                  {/* Quantity */}
-                                  <span className="min-w-16 rounded-full bg-blue-400 px-3 py-1 text-center text-sm font-semibold text-white">
-                                    Qty{" "}
-                                    {
-                                      item.quantity
-                                    }
-                                  </span>
-
-                                  {/* Increase Quantity */}
-                                  <form
-                                    action={
-                                      adjustInventoryQuantity
-                                    }
-                                  >
-                                    <input
-                                      type="hidden"
-                                      name="cadet_id"
-                                      value={
-                                        cadet.id
-                                      }
-                                    />
-
-                                    <input
-                                      type="hidden"
-                                      name="inventory_id"
-                                      value={
-                                        item.inventoryId
-                                      }
-                                    />
-
-                                    <input
-                                      type="hidden"
-                                      name="delta"
-                                      value="1"
-                                    />
-
-                                    <button
-                                      type="submit"
-                                      className="flex h-9 w-9 items-center justify-center rounded-lg bg-black font-bold text-white transition hover:bg-gray-800"
-                                      title="Increase quantity"
-                                    >
-                                      +
-                                    </button>
-                                  </form>
-
-                                  {/* Edit */}
-                                  <a
-                                    href={`/cadets/${cadet.id}/${item.inventoryId}/edit`}
-                                    className="ml-2 text-sm font-semibold text-blue-500 transition hover:text-black"
-                                  >
-                                    Edit
-                                  </a>
-                                </div>
-                              ) : (
-                                <span className="rounded-full bg-blue-400 px-3 py-1 text-sm font-semibold text-white">
-                                  Qty{" "}
-                                  {
-                                    item.quantity
-                                  }
-                                </span>
-                              )}
+    {/* Database Correction */}
+    <a
+      href={`/cadets/${cadet.id}/${item.inventoryId}/edit`}
+      className="text-sm font-semibold text-gray-500 transition hover:text-black"
+    >
+      Correction
+    </a>
+  </div>
+) : (
+  <span className="rounded-full bg-blue-400 px-3 py-1 text-sm font-semibold text-white">
+    Qty{" "}
+    {
+      item.quantity
+    }
+  </span>
+)}
+                                
                             </div>
                           )
                         )}
