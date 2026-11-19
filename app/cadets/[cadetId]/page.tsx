@@ -478,14 +478,23 @@ export default async function CadetProfilePage({
                     : "Setup Incomplete"}
                 </span>
 
-                {canEdit && (
-                  <a
-                    href={`/cadets/${cadet.id}/add`}
-                    className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"
-                  >
-                    + Add Item
-                  </a>
-                )}
+              {canEdit && (
+  <>
+    <a
+      href={`/sizing/${cadet.id}`}
+      className="rounded-lg border border-black px-4 py-2 text-sm font-semibold text-black transition hover:bg-gray-100"
+    >
+      Sizing Profile
+    </a>
+
+    <a
+      href={`/cadets/${cadet.id}/add`}
+      className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"
+    >
+      + Add Item
+    </a>
+  </>
+)}
               </div>
             </div>
           </div>

@@ -35,6 +35,13 @@ export default function StaffHeader({
             </Link>
 
             <Link
+              href="/sizing"
+              className="text-sm font-semibold text-gray-600 transition hover:text-blue-500"
+            >
+              Sizing
+            </Link>
+
+            <Link
               href="/inventory-room"
               className="text-sm font-semibold text-gray-600 transition hover:text-blue-500"
             >
@@ -89,6 +96,13 @@ export default function StaffHeader({
           className="min-w-[100px] flex-none border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
         >
           Cadets
+        </Link>
+
+        <Link
+          href="/sizing"
+          className="min-w-[100px] flex-none border-l border-gray-200 py-3 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-500"
+        >
+          Sizing
         </Link>
 
         <Link
